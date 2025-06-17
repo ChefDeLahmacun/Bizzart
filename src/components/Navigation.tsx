@@ -5,12 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ShoppingCartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCart } from './CartContext';
+import { useSession } from 'next-auth/react';
 
-interface NavigationProps {
-  session: any;
-}
-
-export function Navigation({ session }: NavigationProps) {
+export function Navigation() {
+  const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { cart } = useCart();
