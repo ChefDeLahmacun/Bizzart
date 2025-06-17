@@ -55,6 +55,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           image: user.image,
           role: user.role,
+          language: user.language,
         };
       },
     }),
@@ -73,9 +74,22 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
+      // Always set email if user just signed in
+      if (user && user.email) {
         token.role = user.role;
         token.id = user.id;
+        token.language = user.language;
+        token.email = user.email;
+      }
+      // Always fetch the latest user data for existing sessions
+      if (token?.email) {
+        const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
+        if (dbUser) {
+          token.language = dbUser.language;
+          token.role = dbUser.role;
+          token.id = dbUser.id;
+          token.email = dbUser.email;
+        }
       }
       return token;
     },
@@ -83,6 +97,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.role = token.role;
         session.user.id = token.id;
+        session.user.language = token.language;
       }
       return session;
     },

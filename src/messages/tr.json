@@ -1,0 +1,22 @@
+{
+  "greeting": "Merhaba",
+  "login": "Giriş Yap",
+  "register": "Kayıt Ol",
+  "account": "Hesap",
+  "logout": "Çıkış Yap",
+  "email": "E-posta",
+  "role": "Rol",
+  "profile_info": "Profil bilgilerinizi görüntüleyin ve düzenleyin",
+  "order_history": "Sipariş geçmişinizi görün",
+  "account_settings": "Hesap ayarlarınızı yönetin",
+  "language_preference": "Dil Tercihi",
+  "current_language": "Mevcut dil",
+  "preferred_language": "Tercih edilen dil",
+  "saving": "Kaydediliyor...",
+  "save_language": "Dili Kaydet",
+  "change_password": "Şifreyi Değiştir",
+  "current_password": "Mevcut Şifre",
+  "new_password": "Yeni Şifre",
+  "confirm_new_password": "Yeni Şifreyi Onayla",
+  "change": "Değiştir"
+} 

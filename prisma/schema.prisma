@@ -27,6 +27,7 @@ model User {
   addresses     Address[]
   resetToken    String?
   resetTokenExp DateTime?
+  language      String?   @default("en")
 }
 
 model Product {

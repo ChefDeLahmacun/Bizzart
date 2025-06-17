@@ -49,3 +49,5 @@ next-env.d.ts
 
 # Prisma
 prisma/seed.ts
+
+DEPLOYMENT_NOTES.md

@@ -21,6 +21,7 @@ export default function RegisterPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
+    const language = formData.get('language') as string;
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -38,6 +39,7 @@ export default function RegisterPage() {
           name: `${firstName} ${lastName}`.trim(),
           email,
           password,
+          language,
         }),
       });
 
@@ -107,6 +109,20 @@ export default function RegisterPage() {
                   placeholder="Last name"
                 />
               </div>
+            </div>
+            <div>
+              <label htmlFor="language" className="block text-sm font-medium text-black mb-1">Preferred Language</label>
+              <select
+                id="language"
+                name="language"
+                required
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black bg-white"
+                defaultValue=""
+              >
+                <option value="" disabled>Select language</option>
+                <option value="tr">Türkçe (Tr)</option>
+                <option value="en">English (Eng)</option>
+              </select>
             </div>
             <input
               id="email"
