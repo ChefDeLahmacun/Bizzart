@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 
@@ -15,6 +15,7 @@ interface Product {
   };
   images: {
     url: string;
+    type: 'IMAGE' | 'VIDEO';
   }[];
 }
 
@@ -24,6 +25,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState<string>("1");
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const { addToCart } = useCart();
   const router = useRouter();
 
@@ -67,21 +69,51 @@ export default function ProductDetailPage() {
     setQuantity(value);
   };
 
+  const media = product.images || [];
+  const currentMedia = media[currentMediaIndex];
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row gap-8">
-        <div className="flex-1 flex items-center justify-center">
-          {product.images && product.images.length > 0 ? (
-            <img
-              src={product.images[0].url}
-              alt={product.name}
-              className="rounded-lg object-cover w-full max-w-xs h-72"
-            />
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* Main Media Display */}
+          {currentMedia ? (
+            currentMedia.type === 'VIDEO' ? (
+              <video
+                src={currentMedia.url}
+                controls
+                className="rounded-lg object-cover w-full max-w-xs h-72 mb-2"
+              />
+            ) : (
+              <img
+                src={currentMedia.url}
+                alt={product.name}
+                className="rounded-lg object-cover w-full max-w-xs h-72 mb-2"
+              />
+            )
           ) : (
-            <div className="w-full max-w-xs h-72 flex items-center justify-center bg-gray-100 rounded-lg text-gray-400">
+            <div className="w-full max-w-xs h-72 flex items-center justify-center bg-gray-100 rounded-lg text-gray-400 mb-2">
               No image
             </div>
           )}
+          {/* Thumbnails */}
+          <div className="flex gap-2 mt-2">
+            {media.map((m, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentMediaIndex(idx)}
+                className={`border rounded-lg overflow-hidden w-14 h-14 flex items-center justify-center ${idx === currentMediaIndex ? 'border-blue-500' : 'border-gray-300'}`}
+                tabIndex={0}
+                aria-label={`Show media ${idx + 1}`}
+              >
+                {m.type === 'VIDEO' ? (
+                  <video src={m.url} className="object-cover w-full h-full" />
+                ) : (
+                  <img src={m.url} alt={product.name + ' thumbnail'} className="object-cover w-full h-full" />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-white mb-2">{product.name}</h1>
@@ -102,16 +134,12 @@ export default function ProductDetailPage() {
             <span className="text-xs text-white">(Stock: {product.stock})</span>
           </div>
           {quantity !== "" && Number(quantity) > product.stock && (
-            <div className="text-red-400 text-sm mb-4">Stock is only {product.stock}</div>
+            <div className="text-red-400 text-sm mb-4">Stock: {product.stock} available</div>
           )}
           <button
             onClick={handleAddToCart}
             className="w-full py-3 px-6 bg-white text-black rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              product.stock === 0 ||
-              quantity === "" ||
-              Number(quantity) > product.stock
-            }
+            disabled={product.stock === 0 || quantity === "" || Number(quantity) > product.stock}
           >
             {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
           </button>
