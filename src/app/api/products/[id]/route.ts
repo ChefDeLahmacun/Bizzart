@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { MediaType } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export async function GET(request: Request, context: { params: { id: string } }) {
-  const { params } = await context;
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
     const product = await prisma.product.findUnique({
       where: { id: params.id },
@@ -26,8 +27,8 @@ export async function GET(request: Request, context: { params: { id: string } })
   }
 }
 
-export async function PUT(request: Request, context: { params: { id: string } }) {
-  const { params } = await context;
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'ADMIN') {
@@ -75,7 +76,7 @@ export async function PUT(request: Request, context: { params: { id: string } })
         data: processedMedia.map((media) => ({
           url: media.url,
           productId: params.id,
-          type: media.type,
+          type: media.type === 'VIDEO' ? MediaType.VIDEO : MediaType.IMAGE,
         })),
       });
       // Fetch the new images to get their IDs (since createMany doesn't return them)
@@ -104,8 +105,11 @@ export async function PUT(request: Request, context: { params: { id: string } })
         stock,
         categoryId,
       },
+      include: {
+        images: true,
+        category: true,
+      },
     });
-
     return NextResponse.json(product);
   } catch (error) {
     console.error('Failed to update product:', error);
@@ -116,21 +120,15 @@ export async function PUT(request: Request, context: { params: { id: string } })
   }
 }
 
-export async function DELETE(request: Request, context: { params: { id: string } }) {
-  const { params } = await context;
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    // Delete the product
-    await prisma.product.delete({
-      where: {
-        id: params.id,
-      },
-    });
-
+    await prisma.image.deleteMany({ where: { productId: params.id } });
+    await prisma.product.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to delete product:', error);
