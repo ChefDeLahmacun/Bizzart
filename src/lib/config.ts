@@ -3,18 +3,18 @@
 export const config = {
   // Testing Mode Configuration
   testing: {
-    enabled: process.env.NODE_ENV === 'development' || process.env.TESTING_MODE === 'true',
-    paymentSimulation: true, // Simulate payments in testing mode
-    showTestBanner: true, // Show testing mode banner
-    allowRealPayments: false, // Block real payments in testing mode
+    enabled: process.env.TESTING_MODE === 'true',
+    paymentSimulation: process.env.TESTING_MODE === 'true',
+    showTestBanner: process.env.TESTING_MODE === 'true',
+    allowRealPayments: process.env.TESTING_MODE !== 'true',
   },
   
   // Payment Configuration
   payment: {
     provider: process.env.PAYMENT_PROVIDER || 'iyzico', // 'iyzico' or 'stripe'
     testing: {
-      simulateSuccess: true, // Always simulate successful payments in testing
-      simulateDelay: 2000, // Simulate 2 second processing time
+      simulateSuccess: process.env.TESTING_MODE === 'true',
+      simulateDelay: process.env.TESTING_MODE === 'true' ? 2000 : 0,
       testCards: [
         '4111 1111 1111 1111', // Visa
         '5555 5555 5555 4444', // Mastercard
@@ -25,8 +25,6 @@ export const config = {
   
   // Environment Configuration
   environment: {
-    isDevelopment: process.env.NODE_ENV === 'development',
-    isProduction: process.env.NODE_ENV === 'production',
     isTesting: process.env.TESTING_MODE === 'true',
   }
 };
