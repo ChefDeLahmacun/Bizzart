@@ -298,6 +298,26 @@ export default function AddProductPage() {
           </select>
         </div>
 
+        {/* Colors */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-black">
+            Colors (Select all that apply)
+          </label>
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+            {['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Black', 'White', 'Gray', 'Natural', 'Terracotta', 'Ceramic'].map((color) => (
+              <label key={color} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="colors"
+                  value={color}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-black">{color}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* Size Specifications */}
         <div className="border-t border-gray-200 pt-6">
           <h3 className="text-lg font-medium mb-4 text-black">Size Specifications (Optional)</h3>

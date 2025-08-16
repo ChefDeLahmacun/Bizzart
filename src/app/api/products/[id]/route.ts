@@ -17,6 +17,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+    console.log('Product fetched with colors:', product.colors || []);
     return NextResponse.json(product);
   } catch (error) {
     console.error('Failed to fetch product:', error);
@@ -45,6 +46,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const removeMediaIds = formData.getAll('removeMediaIds[]') as string[];
     const mediaOrderRaw = formData.getAll('mediaOrder[]') as string[];
     const mediaOrder = mediaOrderRaw.map((item) => JSON.parse(item)); // [{id, order}]
+    
+    // Handle colors (multiple selection)
+    const colors = formData.getAll('colors') as string[];
 
     // Handle size specifications (optional)
     const height = formData.get('height') ? parseFloat(formData.get('height') as string) : null;
@@ -111,6 +115,8 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         price,
         stock,
         categoryId,
+        // Colors
+        colors: colors.length > 0 ? colors : [],
         // Size specifications
         height,
         width,

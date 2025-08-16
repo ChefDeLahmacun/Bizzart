@@ -50,6 +50,8 @@ model Product {
   depth       Float?    // in centimeters
   diameter    Float?    // in centimeters
   weight      Float?    // in grams
+  // Color information
+  colors      String[]  // Array of colors for the product
 }
 
 model Image {
@@ -74,16 +76,17 @@ model Category {
 }
 
 model Order {
-  id         String      @id @default(cuid())
-  user       User        @relation(fields: [userId], references: [id])
-  userId     String
-  address    Address     @relation(fields: [addressId], references: [id])
-  addressId  String
-  items      OrderItem[]
-  status     OrderStatus @default(PENDING)
-  total      Float
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       String
+  address      Address     @relation(fields: [addressId], references: [id])
+  addressId    String
+  items        OrderItem[]
+  status       OrderStatus @default(PENDING)
+  totalAmount  Float
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  refunds      Refund[]
 }
 
 model OrderItem {
@@ -94,6 +97,19 @@ model OrderItem {
   productId String
   quantity  Int
   price     Float
+}
+
+model Refund {
+  id           String      @id @default(cuid())
+  order        Order       @relation(fields: [orderId], references: [id])
+  orderId      String
+  amount       Float
+  reason       String
+  method       String      // AUTOMATIC, MANUAL, BANK_TRANSFER, etc.
+  status       String      // PENDING, PROCESSED, FAILED
+  processedBy  String      // User ID who processed the refund
+  processedAt  DateTime    @default(now())
+  notes        String?     // Additional notes
 }
 
 model Account {
@@ -144,6 +160,14 @@ model Address {
   orders      Order[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model AdminSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String? // User ID who made the change
 }
 
 enum Role {
