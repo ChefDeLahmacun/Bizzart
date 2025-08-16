@@ -24,46 +24,41 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log('Missing credentials', credentials);
           throw new Error('Invalid credentials');
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          });
 
-        if (!user) {
-          console.log('User not found for email:', credentials.email);
-          throw new Error('Invalid credentials');
+          if (!user) {
+            throw new Error('Invalid credentials');
+          }
+
+          if (!user?.password) {
+            throw new Error('Invalid credentials');
+          }
+
+          const isCorrectPassword = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!isCorrectPassword) {
+            throw new Error('Invalid credentials');
+          }
+
+          // Return only public fields
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        } catch (error) {
+          throw new Error('Authentication failed');
         }
-
-        if (!user?.password) {
-          console.log('User has no password:', user);
-          throw new Error('Invalid credentials');
-        }
-
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isCorrectPassword) {
-          console.log('Incorrect password for user:', user.email);
-          throw new Error('Invalid credentials');
-        }
-
-        // Return only public fields with proper type conversion
-        console.log('Login successful for user:', user.email);
-        return {
-          id: user.id,
-          name: user.name || undefined,
-          email: user.email,
-          image: user.image || undefined,
-          role: user.role,
-          language: user.language || undefined,
-        };
       },
     }),
     GoogleProvider({
@@ -140,11 +135,8 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user }) {
       // Always set email if user just signed in
-      if (user && user.email && user.id) {
-        token.role = user.role || 'USER';
-        token.id = user.id;
-        token.language = user.language;
-        token.email = user.email;
+      if (user) {
+        token.role = user.role;
       }
       // Always fetch the latest user data for existing sessions
       if (token?.email) {
@@ -161,7 +153,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
+      if (token) {
         session.user.role = token.role;
         session.user.id = token.id || '';
         session.user.language = token.language;

@@ -177,7 +177,6 @@ export default function EditProductPage() {
 
   const handleRemove = (id: string) => {
     setMedia((prev) => {
-      console.log('Removing media with id:', id);
       return prev.filter((item) => item.id !== id);
     });
     // If it's an existing media (id is not a temp id), track for deletion

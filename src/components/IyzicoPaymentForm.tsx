@@ -32,14 +32,10 @@ export default function IyzicoPaymentForm({ amount, onSuccess, onError, orderId 
     // Check if we should simulate payments (testing mode)
     if (isTestingMode() && shouldSimulatePayments()) {
       // Simulate payment processing
-      console.log('🧪 Testing Mode: Simulating payment...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      setTimeout(() => {
-        setIsProcessing(false);
-        console.log('🧪 Testing Mode: Payment simulation successful');
-        onSuccess();
-      }, 2000);
-      
+      setIsProcessing(false);
+      onSuccess();
       return;
     }
 

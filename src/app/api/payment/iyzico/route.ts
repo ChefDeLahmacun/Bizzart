@@ -52,8 +52,6 @@ export async function POST(request: NextRequest) {
 
     // Check if we should simulate payments (testing mode)
     if (isTestingMode() && shouldSimulatePayments()) {
-      console.log('🧪 Testing Mode: Simulating Iyzico payment for order:', orderId);
-      
       // Simulate successful payment
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -73,7 +71,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Real payment processing (production mode)
-    console.log('🚀 Production Mode: Processing real payment with Iyzico');
 
     // Create Iyzico payment request
     const request = {

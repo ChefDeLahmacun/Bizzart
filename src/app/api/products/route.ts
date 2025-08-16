@@ -7,22 +7,11 @@ import { MediaType } from '@prisma/client';
 
 export async function GET() {
   try {
-    console.log('Fetching products...');
     const products = await prisma.product.findMany({
       include: {
         images: true,
         category: true,
       },
-    });
-    
-    console.log('Found', products.length, 'products');
-    products.forEach((product, index) => {
-      console.log(`Product ${index + 1}:`, product.name, 'with', product.images?.length || 0, 'images', 'and colors:', product.colors || []);
-      if (product.images && product.images.length > 0) {
-        product.images.forEach((img, imgIndex) => {
-          console.log(`  Image ${imgIndex + 1}:`, img.url, img.type);
-        });
-      }
     });
     
     return NextResponse.json(products);
@@ -51,7 +40,7 @@ export async function POST(request: Request) {
     // Handle colors (multiple selection)
     const colors = formData.getAll('colors') as string[];
 
-    console.log('Creating product with:', { name, description, price, stock, categoryId, imagesCount: images.length, colors });
+
 
     // Handle size specifications (optional)
     const height = formData.get('height') ? parseFloat(formData.get('height') as string) : null;
@@ -84,25 +73,17 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log('Product created with ID:', product.id);
-
     // Handle media uploads
     if (images.length > 0) {
-      console.log('Processing', images.length, 'media files...');
-      
       const uploadResults = [];
       for (let index = 0; index < images.length; index++) {
         const file = images[index];
         try {
-          console.log(`Uploading file ${index + 1}/${images.length}:`, file.name, file.type, file.size);
           const result = await fileUploadService.uploadFile(file, 'products');
           
           if (!result.success) {
-            console.error(`File upload failed for ${file.name}:`, result.error);
             throw new Error(`Failed to upload ${file.name}: ${result.error}`);
           }
-          
-          console.log(`File ${file.name} uploaded successfully:`, result.url);
           
           uploadResults.push({
             url: result.url,
@@ -110,19 +91,14 @@ export async function POST(request: Request) {
             order: index,
           });
         } catch (error) {
-          console.error(`Error uploading file ${file.name}:`, error);
           throw error;
         }
       }
-
-      console.log('All files uploaded, creating database records...');
-      console.log('Upload results:', uploadResults);
 
       // Create media records one by one for better error handling
       const createdImages = [];
       for (const media of uploadResults) {
         try {
-          console.log('Creating database record for:', media.url, media.type, media.order);
           const imageRecord = await prisma.image.create({
             data: {
               url: media.url,
@@ -132,14 +108,10 @@ export async function POST(request: Request) {
             },
           });
           createdImages.push(imageRecord);
-          console.log('Created image record:', imageRecord.id, imageRecord.url);
         } catch (error) {
-          console.error('Failed to create image record:', error);
           throw new Error(`Failed to create database record for ${media.url}: ${error}`);
         }
       }
-
-      console.log('Created', createdImages.length, 'media records in database');
     }
 
     // Fetch the complete product with images for response
@@ -151,7 +123,7 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log('Final product with images:', completeProduct?.images?.length || 0, 'images');
+
 
     return NextResponse.json({ success: true, product: completeProduct });
   } catch (error) {

@@ -81,7 +81,7 @@ export default function AdminLayout({
               Back to Shop
             </Link>
             <button
-              onClick={() => { console.log('Logout clicked'); signOut({ callbackUrl: "/login" }); }}
+              onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md w-full mt-2 transition-colors"
               type="button"
             >
