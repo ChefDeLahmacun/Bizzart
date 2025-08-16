@@ -18,10 +18,10 @@ interface Product {
   stock: number;
   categoryId: string;
   images: { id: string; url: string }[];
+  colors: string[];
 }
 
-export default async function EditProductPage(context: { params: { id: string } }) {
-  const { params } = await context;
+export default function EditProductPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +29,7 @@ export default async function EditProductPage(context: { params: { id: string } 
   const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,8 +38,12 @@ export default async function EditProductPage(context: { params: { id: string } 
         const productRes = await fetch(`/api/products/${params.id}`);
         if (!productRes.ok) throw new Error('Failed to fetch product');
         const productData = await productRes.json();
+        console.log('Fetched product data:', productData);
+        console.log('Product colors:', productData.colors);
         setProduct(productData);
         setPreviewUrls(productData.images.map((img: any) => img.url));
+        setSelectedColors(productData.colors || []);
+        console.log('Set selected colors to:', productData.colors || []);
 
         // Fetch categories
         const categoriesRes = await fetch('/api/categories');
@@ -66,6 +71,14 @@ export default async function EditProductPage(context: { params: { id: string } 
     },
   });
 
+  const handleColorToggle = (color: string) => {
+    setSelectedColors(prev => 
+      prev.includes(color) 
+        ? prev.filter(c => c !== color)
+        : [...prev, color]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -74,6 +87,11 @@ export default async function EditProductPage(context: { params: { id: string } 
     try {
       const formData = new FormData(e.currentTarget);
       formData.append('id', params.id);
+      
+      // Add selected colors to form data
+      selectedColors.forEach(color => {
+        formData.append('colors', color);
+      });
 
       const response = await fetch(`/api/products/${params.id}`, {
         method: 'PUT',
@@ -102,6 +120,16 @@ export default async function EditProductPage(context: { params: { id: string } 
       <h1 className="text-2xl font-bold mb-6 text-black">Edit Product</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Debug Info */}
+        <div className="border border-red-300 p-4 rounded-lg bg-red-50">
+          <h3 className="text-lg font-bold text-red-800 mb-2">DEBUG INFO</h3>
+          <p className="text-sm text-red-700">Product ID: {params.id}</p>
+          <p className="text-sm text-red-700">Product Name: {product.name}</p>
+          <p className="text-sm text-red-700">Product Colors: {JSON.stringify(product.colors)}</p>
+          <p className="text-sm text-red-700">Selected Colors: {JSON.stringify(selectedColors)}</p>
+          <p className="text-sm text-red-700">Colors Section Should Be Below</p>
+        </div>
+
         {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-2 text-black">Product Images</label>
@@ -220,6 +248,28 @@ export default async function EditProductPage(context: { params: { id: string } 
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Colors */}
+        <div className="border border-gray-300 p-4 rounded-lg bg-gray-50">
+          <label className="block text-sm font-medium mb-2 text-black">
+            Colors (Select all that apply) - Current: [{selectedColors.join(', ')}]
+          </label>
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+            {['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Black', 'White', 'Gray', 'Natural', 'Terracotta', 'Ceramic'].map((color) => (
+              <label key={color} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedColors.includes(color)}
+                  onChange={() => handleColorToggle(color)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-black">{color}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Debug: selectedColors = [{selectedColors.join(', ')}]</p>
+          <p className="text-xs text-gray-500 mt-1">Debug: product.colors = [{product.colors?.join(', ') || 'undefined'}]</p>
         </div>
 
         {error && (

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+// import { sendOrderConfirmation } from '@/lib/email';
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           addressId: addressId,
-          total: totalAmount,
+          totalAmount: totalAmount,
           status: 'PENDING',
           items: {
             create: items.map((item: any) => ({
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
           },
         },
         include: {
+          user: true,
           items: {
             include: {
               product: true,
@@ -85,6 +87,15 @@ export async function POST(request: Request) {
 
       return order;
     });
+
+    // Send order confirmation email (temporarily disabled)
+    // try {
+    //   await sendOrderConfirmation(result, user, result.items);
+    //   console.log(`Order confirmation email sent for order ${result.id}`);
+    // } catch (emailError) {
+    //   console.error('Failed to send order confirmation email:', emailError);
+    //   // Don't fail the checkout if email fails
+    // }
 
     return NextResponse.json(result);
   } catch (error: any) {

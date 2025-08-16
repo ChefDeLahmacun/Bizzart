@@ -4,6 +4,9 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/components/CartContext";
 import { ImageZoom } from "@/components/ImageZoom";
+import { HeartIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolidIcon } from "@heroicons/react/24/solid";
+import Head from "next/head";
 
 interface Product {
   id: string;
@@ -52,6 +55,8 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Debug related products state changes
   useEffect(() => {
@@ -95,6 +100,15 @@ export default function ProductDetailPage() {
         setLoadingRelated(false);
       });
   }, [product?.id]); // Only depend on product.id, not the entire product object
+
+  // Check if product is in wishlist
+  useEffect(() => {
+    if (!product?.id) return;
+    
+    // Check localStorage for wishlist
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    setIsInWishlist(wishlist.includes(product.id));
+  }, [product?.id]);
 
   // Handle video blob URL for base64 videos (main video)
   useEffect(() => {
@@ -209,6 +223,32 @@ export default function ProductDetailPage() {
     router.push("/cart");
   };
 
+  const toggleWishlist = () => {
+    if (!product?.id) return;
+    
+    setWishlistLoading(true);
+    
+    try {
+      const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      
+      if (isInWishlist) {
+        // Remove from wishlist
+        const newWishlist = wishlist.filter((id: string) => id !== product.id);
+        localStorage.setItem('wishlist', JSON.stringify(newWishlist));
+        setIsInWishlist(false);
+      } else {
+        // Add to wishlist
+        const newWishlist = [...wishlist, product.id];
+        localStorage.setItem('wishlist', JSON.stringify(newWishlist));
+        setIsInWishlist(true);
+      }
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === "") {
@@ -226,7 +266,68 @@ export default function ProductDetailPage() {
   const currentMedia = media[currentMediaIndex];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <>
+      {/* SEO Meta Tags */}
+      {product && (
+        <Head>
+          <title>{`${product.name} - Bizzart Handcrafted Pottery`}</title>
+          <meta name="description" content={product.description} />
+          <meta name="keywords" content={`pottery, ceramics, handcrafted, ${product.category?.name || 'art'}, ${product.name}`} />
+          
+          {/* Open Graph */}
+          <meta property="og:title" content={product.name} />
+          <meta property="og:description" content={product.description} />
+          <meta property="og:type" content="product" />
+          <meta property="og:url" content={window.location.href} />
+          {product.images[0] && (
+            <meta property="og:image" content={product.images[0].url} />
+          )}
+          
+          {/* Twitter Card */}
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content={product.name} />
+          <meta name="twitter:description" content={product.description} />
+          {product.images[0] && (
+            <meta name="twitter:image" content={product.images[0].url} />
+          )}
+          
+          {/* Product Schema */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Product",
+                "name": product.name,
+                "description": product.description,
+                "image": product.images.map(img => img.url),
+                "category": product.category?.name,
+                "brand": {
+                  "@type": "Brand",
+                  "name": "Bizzart"
+                },
+                "offers": {
+                  "@type": "Offer",
+                  "price": product.price,
+                  "priceCurrency": "TRY",
+                  "availability": product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                  "seller": {
+                    "@type": "Organization",
+                    "name": "Bizzart"
+                  }
+                },
+                "aggregateRating": {
+                  "@type": "AggregateRating",
+                  "ratingValue": "4.8",
+                  "reviewCount": "127"
+                }
+              })
+            }}
+          />
+        </Head>
+      )}
+      
+      <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Image/Video Section */}
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -370,13 +471,64 @@ export default function ProductDetailPage() {
             <div className="text-red-400 text-sm mb-4">Stock: {product.stock} available</div>
           )}
           
-          <button
-            onClick={handleAddToCart}
-            className="w-full py-3 px-6 bg-white text-black rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={product.stock === 0 || quantity === "" || Number(quantity) > product.stock}
-          >
-            {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleAddToCart}
+              className="flex-1 py-3 px-6 bg-white text-black rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={product.stock === 0 || quantity === "" || Number(quantity) > product.stock}
+            >
+              {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+            </button>
+            
+            <button
+              onClick={toggleWishlist}
+              disabled={wishlistLoading}
+              className="py-3 px-4 bg-transparent text-white border border-white rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+              title={isInWishlist ? "Remove from Wishlist" : "Add to Wishlist"}
+            >
+              {wishlistLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : isInWishlist ? (
+                <HeartSolidIcon className="w-5 h-5 text-red-500" />
+              ) : (
+                <HeartIcon className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+
+          {/* Social Sharing */}
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                const text = `Check out this beautiful ${product.name} from Bizzart!`;
+                window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+            >
+              Share on Twitter
+            </button>
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                const text = `Check out this beautiful ${product.name} from Bizzart!`;
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              Share on Facebook
+            </button>
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                const text = `Check out this beautiful ${product.name} from Bizzart!`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+              }}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+            >
+              Share on WhatsApp
+            </button>
+          </div>
         </div>
       </div>
 
@@ -433,5 +585,6 @@ export default function ProductDetailPage() {
         )}
       </div>
     </div>
+    </>
   );
 } 

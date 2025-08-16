@@ -32,6 +32,7 @@ interface Product {
   stock: number;
   categoryId: string;
   images: { url: string; type: 'IMAGE' | 'VIDEO' }[];
+  colors: string[];
   height?: number | null;
   width?: number | null;
   depth?: number | null;
@@ -113,6 +114,7 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [media, setMedia] = useState<{ id: string; url: string; type: string; file?: File }[]>([]);
   const [removedMediaIds, setRemovedMediaIds] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,7 @@ export default function EditProductPage() {
           url: img.url,
           type: img.type === 'VIDEO' ? 'video' : 'image',
         })));
+        setSelectedColors(productData.colors || []);
 
         const categoriesRes = await fetch('/api/categories');
         if (!categoriesRes.ok) throw new Error('Failed to fetch categories');
@@ -145,6 +148,14 @@ export default function EditProductPage() {
     };
     fetchData();
   }, [params.id]);
+
+  const handleColorToggle = (color: string) => {
+    setSelectedColors(prev => 
+      prev.includes(color) 
+        ? prev.filter(c => c !== color)
+        : [...prev, color]
+    );
+  };
 
   const handleDrop = (acceptedFiles: File[]) => {
     const newMedia = acceptedFiles.map((file) => ({
@@ -209,6 +220,38 @@ export default function EditProductPage() {
       removedMediaIds.forEach((id) => {
         formData.append('removeMediaIds[]', id);
       });
+      
+      // Add colors to form data
+      selectedColors.forEach(color => {
+        formData.append('colors', color);
+      });
+      
+      // Add other form fields
+      const formElement = document.querySelector('form');
+      if (formElement) {
+        const nameInput = formElement.querySelector('[name="name"]') as HTMLInputElement;
+        const descriptionInput = formElement.querySelector('[name="description"]') as HTMLTextAreaElement;
+        const priceInput = formElement.querySelector('[name="price"]') as HTMLInputElement;
+        const stockInput = formElement.querySelector('[name="stock"]') as HTMLInputElement;
+        const categoryInput = formElement.querySelector('[name="categoryId"]') as HTMLSelectElement;
+        const heightInput = formElement.querySelector('[name="height"]') as HTMLInputElement;
+        const widthInput = formElement.querySelector('[name="width"]') as HTMLInputElement;
+        const depthInput = formElement.querySelector('[name="depth"]') as HTMLInputElement;
+        const diameterInput = formElement.querySelector('[name="diameter"]') as HTMLInputElement;
+        const weightInput = formElement.querySelector('[name="weight"]') as HTMLInputElement;
+        
+        if (nameInput) formData.append('name', nameInput.value);
+        if (descriptionInput) formData.append('description', descriptionInput.value);
+        if (priceInput) formData.append('price', priceInput.value);
+        if (stockInput) formData.append('stock', stockInput.value);
+        if (categoryInput) formData.append('categoryId', categoryInput.value);
+        if (heightInput && heightInput.value) formData.append('height', heightInput.value);
+        if (widthInput && widthInput.value) formData.append('width', widthInput.value);
+        if (depthInput && depthInput.value) formData.append('depth', depthInput.value);
+        if (diameterInput && diameterInput.value) formData.append('diameter', diameterInput.value);
+        if (weightInput && weightInput.value) formData.append('weight', weightInput.value);
+      }
+      
       formData.append('id', params.id);
       const response = await fetch(`/api/products/${params.id}`, {
         method: 'PUT',
@@ -362,6 +405,24 @@ export default function EditProductPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Colors */}
+        <div className="border-t border-gray-200 pt-6">
+          <h3 className="text-lg font-medium mb-4 text-gray-900">Colors (Select all that apply)</h3>
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+            {['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Black', 'White', 'Gray', 'Natural', 'Terracotta', 'Ceramic'].map((color) => (
+              <label key={color} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedColors.includes(color)}
+                  onChange={() => handleColorToggle(color)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-900">{color}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* Size Specifications */}

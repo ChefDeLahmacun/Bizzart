@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, UserIcon, Bars3Icon, XMarkIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { useCart } from './CartContext';
 import { useSession } from 'next-auth/react';
 
@@ -22,6 +22,7 @@ export function Navigation() {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Products', href: '/products' },
+    { name: 'Wishlist', href: '/wishlist' },
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
   ];
@@ -76,6 +77,12 @@ export function Navigation() {
                 )}
               </Link>
             </div>
+            <Link
+              href="/wishlist"
+              className="text-gray-500 hover:text-black p-2 transition-colors"
+            >
+              <HeartIcon className="h-6 w-6" />
+            </Link>
             {session ? (
               <Link
                 href="/account"

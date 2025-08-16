@@ -17,7 +17,7 @@ export async function GET() {
     
     console.log('Found', products.length, 'products');
     products.forEach((product, index) => {
-      console.log(`Product ${index + 1}:`, product.name, 'with', product.images?.length || 0, 'images');
+      console.log(`Product ${index + 1}:`, product.name, 'with', product.images?.length || 0, 'images', 'and colors:', product.colors || []);
       if (product.images && product.images.length > 0) {
         product.images.forEach((img, imgIndex) => {
           console.log(`  Image ${imgIndex + 1}:`, img.url, img.type);
@@ -47,8 +47,11 @@ export async function POST(request: Request) {
     const stock = parseInt(formData.get('stock') as string, 10);
     const categoryId = formData.get('categoryId') as string;
     const images = formData.getAll('images') as File[];
+    
+    // Handle colors (multiple selection)
+    const colors = formData.getAll('colors') as string[];
 
-    console.log('Creating product with:', { name, description, price, stock, categoryId, imagesCount: images.length });
+    console.log('Creating product with:', { name, description, price, stock, categoryId, imagesCount: images.length, colors });
 
     // Handle size specifications (optional)
     const height = formData.get('height') ? parseFloat(formData.get('height') as string) : null;
@@ -70,6 +73,8 @@ export async function POST(request: Request) {
         stock,
         categoryId,
         userId: session.user.id,
+        // Colors
+        colors: colors.length > 0 ? colors : [],
         // Size specifications
         height,
         width,
