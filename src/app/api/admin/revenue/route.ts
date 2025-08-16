@@ -33,7 +33,7 @@ export async function GET() {
     try {
       orders = await prisma.order.findMany({
         select: {
-          total: true,
+          totalAmount: true,
           status: true,
           createdAt: true,
         },
@@ -45,7 +45,7 @@ export async function GET() {
     }
 
     // Calculate total revenue
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     console.log('Total revenue calculated:', totalRevenue);
     
     // Test AdminSettings table
@@ -69,7 +69,7 @@ export async function GET() {
       const resetDate = new Date(lastResetDate);
       revenueSinceReset = orders
         .filter(order => new Date(order.createdAt) > resetDate)
-        .reduce((sum, order) => sum + (order.total || 0), 0);
+        .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     }
 
     const responseData = {
@@ -111,16 +111,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    // Get current date in Turkish timezone (UTC+3)
+    // Get current date in Turkish timezone using proper timezone conversion
     const now = new Date();
-    const turkishTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // UTC+3
-    const currentDate = turkishTime.toISOString();
     
-    console.log('Turkish time calculated:', turkishTime);
-    console.log('Current date ISO:', currentDate);
-    
-    // Format for Turkish display
-    const turkishDateString = turkishTime.toLocaleString('tr-TR', {
+    // Convert to Turkish timezone for display
+    const turkishDateString = now.toLocaleString('tr-TR', {
       timeZone: 'Europe/Istanbul',
       year: 'numeric',
       month: 'long',
@@ -129,6 +124,13 @@ export async function POST(request: NextRequest) {
       minute: '2-digit',
       second: '2-digit'
     });
+    
+    // Store the current UTC time (this is what we want to store in database)
+    const currentDate = now.toISOString();
+    
+    console.log('Current UTC time:', now);
+    console.log('Turkish display time:', turkishDateString);
+    console.log('Current date ISO (UTC):', currentDate);
     
     console.log('Turkish date string:', turkishDateString);
     

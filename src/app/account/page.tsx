@@ -18,7 +18,7 @@ interface Address {
 
 interface Order {
   id: string;
-  total: number;
+  totalAmount: number;
   status: string;
   createdAt: string;
   items: Array<{
@@ -41,7 +41,7 @@ interface Order {
   };
 }
 
-type TabType = 'profile' | 'orders' | 'addresses';
+type TabType = 'profile' | 'orders' | 'addresses' | 'preferences';
 
 export default function AccountPage() {
   const { data: session, status } = useSession();
@@ -87,6 +87,19 @@ export default function AccountPage() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
 
+  // Preferences state
+  const [preferences, setPreferences] = useState({
+    emailNotifications: true,
+    orderUpdates: true,
+    promotionalEmails: false,
+    newsletter: false,
+    orderTracking: true,
+    lowStockAlerts: false
+  });
+  const [preferencesLoading, setPreferencesLoading] = useState(false);
+  const [preferencesSuccess, setPreferencesSuccess] = useState("");
+  const [preferencesError, setPreferencesError] = useState("");
+
   // Load addresses when session is available
   const loadAddresses = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -121,6 +134,16 @@ export default function AccountPage() {
   useEffect(() => {
     loadAddresses();
     loadOrders();
+    
+    // Load user preferences from localStorage
+    const savedPreferences = localStorage.getItem('userPreferences');
+    if (savedPreferences) {
+      try {
+        setPreferences(JSON.parse(savedPreferences));
+      } catch (error) {
+        console.error('Error parsing saved preferences:', error);
+      }
+    }
   }, [loadAddresses, loadOrders]);
 
   // Password change function
@@ -265,6 +288,31 @@ export default function AccountPage() {
     }
   };
 
+  const setDefaultAddress = async (addressId: string) => {
+    if (!session?.user?.id) return;
+    
+    try {
+      // Move the selected address to the front of the array (making it default)
+      const updatedAddresses = [
+        addresses.find(addr => addr.id === addressId)!,
+        ...addresses.filter(addr => addr.id !== addressId)
+      ];
+      setAddresses(updatedAddresses);
+      
+      // In a real app, you'd save this preference to the database
+      // const response = await fetch(`/api/users/${session.user.id}/address/default`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ addressId }),
+      // });
+      
+      setAddressSuccess('Default address updated');
+      setTimeout(() => setAddressSuccess(""), 3000);
+    } catch (error) {
+      setAddressError('Failed to update default address');
+    }
+  };
+
   const startEditAddress = (address: Address) => {
     setEditingAddress(address);
     setAddressForm({
@@ -284,6 +332,51 @@ export default function AccountPage() {
     setAddressForm({ line1: "", line2: "", city: "", state: "", postalCode: "", country: "", phone: "" });
     setAddressError("");
     setAddressSuccess("");
+  };
+
+  // Preferences functions
+  const handlePreferencesUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPreferencesLoading(true);
+    setPreferencesError("");
+    setPreferencesSuccess("");
+    
+    try {
+      // Save preferences to localStorage for now
+      localStorage.setItem('userPreferences', JSON.stringify(preferences));
+      setPreferencesSuccess("Preferences saved successfully!");
+      
+      // In a real app, you'd save this to the database
+      // const response = await fetch('/api/users/me/preferences', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(preferences),
+      // });
+      
+      setTimeout(() => setPreferencesSuccess(""), 3000);
+    } catch (error) {
+      setPreferencesError("Failed to save preferences");
+    } finally {
+      setPreferencesLoading(false);
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    try {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          alert('Push notifications enabled! You\'ll receive updates about your orders.');
+        } else if (permission === 'denied') {
+          alert('Push notifications were denied. You can enable them in your browser settings.');
+        }
+      } else {
+        alert('Push notifications are not supported in your browser.');
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      alert('Failed to enable push notifications.');
+    }
   };
 
   if (status === "loading") {
@@ -314,7 +407,8 @@ export default function AccountPage() {
         {[
           { id: 'profile', label: 'Profile', icon: '👤' },
           { id: 'orders', label: 'Orders', icon: '📦' },
-          { id: 'addresses', label: 'Addresses', icon: '📍' }
+          { id: 'addresses', label: 'Addresses', icon: '📍' },
+          { id: 'preferences', label: 'Preferences', icon: '⚙️' }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -473,7 +567,7 @@ export default function AccountPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-lg text-black">₺{order.total.toFixed(2)}</p>
+                  <p className="font-semibold text-lg text-black">₺{order.totalAmount.toFixed(2)}</p>
                   <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                     order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                     order.status === 'PROCESSING' ? 'bg-blue-100 text-blue-800' :
@@ -541,6 +635,123 @@ export default function AccountPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+
+  // Preferences tab content
+  const PreferencesTab = () => (
+    <div className="space-y-6">
+      {/* Email Preferences */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4 text-black">Email Preferences</h2>
+        <form className="space-y-4" onSubmit={handlePreferencesUpdate}>
+          {preferencesError && <div className="text-red-600 text-sm">{preferencesError}</div>}
+          {preferencesSuccess && <div className="text-green-600 text-sm">{preferencesSuccess}</div>}
+          
+          <div className="space-y-3">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.emailNotifications}
+                onChange={(e) => setPreferences({ ...preferences, emailNotifications: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Receive email notifications</span>
+            </label>
+            
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.orderUpdates}
+                onChange={(e) => setPreferences({ ...preferences, orderUpdates: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Order status updates</span>
+            </label>
+            
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.orderTracking}
+                onChange={(e) => setPreferences({ ...preferences, orderTracking: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Order tracking information</span>
+            </label>
+            
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.promotionalEmails}
+                onChange={(e) => setPreferences({ ...preferences, promotionalEmails: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Promotional emails and offers</span>
+            </label>
+            
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.newsletter}
+                onChange={(e) => setPreferences({ ...preferences, newsletter: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Newsletter subscription</span>
+            </label>
+            
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={preferences.lowStockAlerts}
+                onChange={(e) => setPreferences({ ...preferences, lowStockAlerts: e.target.checked })}
+                className="mr-3 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Low stock alerts for wishlist items</span>
+            </label>
+          </div>
+          
+          <button
+            type="submit"
+            disabled={preferencesLoading}
+            className="w-full py-2 px-4 bg-black text-white rounded hover:bg-gray-800 transition disabled:opacity-50"
+          >
+            {preferencesLoading ? 'Saving...' : 'Save Preferences'}
+          </button>
+        </form>
+      </div>
+
+      {/* Notification Settings */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4 text-black">Notification Settings</h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700">Push Notifications</h3>
+              <p className="text-xs text-gray-500">Receive notifications in your browser</p>
+            </div>
+            <button
+              onClick={requestNotificationPermission}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm"
+            >
+              Enable
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700">SMS Notifications</h3>
+              <p className="text-xs text-gray-500">Receive order updates via SMS</p>
+            </div>
+            <button
+              onClick={() => alert('SMS notifications coming soon!')}
+              className="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed text-sm"
+              disabled
+            >
+              Coming Soon
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -685,6 +896,16 @@ export default function AccountPage() {
             <div key={address.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      📍 Address
+                    </span>
+                    {addresses.indexOf(address) === 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Default
+                      </span>
+                    )}
+                  </div>
                   <p className="font-medium text-gray-900">{address.line1}</p>
                   {address.line2 && <p className="text-gray-600">{address.line2}</p>}
                   <p className="text-gray-600">
@@ -694,6 +915,15 @@ export default function AccountPage() {
                   <p className="text-gray-600">📞 {address.phone}</p>
                 </div>
                 <div className="flex gap-2 ml-4">
+                  {addresses.indexOf(address) !== 0 && (
+                    <button
+                      onClick={() => setDefaultAddress(address.id)}
+                      className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      title="Set as default address"
+                    >
+                      Set Default
+                    </button>
+                  )}
                   <button
                     onClick={() => startEditAddress(address)}
                     className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
@@ -724,6 +954,8 @@ export default function AccountPage() {
         return <OrdersTab />;
       case 'addresses':
         return <AddressesTab />;
+      case 'preferences':
+        return <PreferencesTab />;
       default:
         return <ProfileTab />;
     }
