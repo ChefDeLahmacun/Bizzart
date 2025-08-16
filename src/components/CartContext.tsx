@@ -50,12 +50,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  // Log only when cart changes
-  useEffect(() => {
-    console.log('Cart items:', cart);
-    console.log('Cart count:', cart.reduce((sum, item) => sum + item.quantity, 0));
-  }, [cart]);
-
   const addToCart = (item: CartItem) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);

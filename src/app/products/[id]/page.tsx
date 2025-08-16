@@ -58,10 +58,7 @@ export default function ProductDetailPage() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  // Debug related products state changes
-  useEffect(() => {
-    console.log('Related products state changed:', relatedProducts.length, 'products');
-  }, [relatedProducts]);
+
 
   // Fetch product only once per mount
   useEffect(() => {
@@ -80,7 +77,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!product || !id) return;
     
-    console.log('Fetching related products for product:', product.id);
+
     setLoadingRelated(true);
     
     fetch(`/api/products/${id}/related`)
@@ -89,7 +86,7 @@ export default function ProductDetailPage() {
         return res.json();
       })
       .then((data) => {
-        console.log('Related products loaded:', data.length, 'products');
+
         setRelatedProducts(data);
       })
       .catch((error) => {

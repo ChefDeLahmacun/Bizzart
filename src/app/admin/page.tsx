@@ -124,15 +124,10 @@ export default function AdminDashboard() {
 
   const fetchRevenueStats = async () => {
     try {
-      console.log('Fetching revenue stats...');
       const response = await fetch(`/api/admin/revenue?t=${Date.now()}`);
-      console.log('Revenue response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Revenue data received:', data);
         setRevenueStats(data);
-      } else {
-        console.error('Revenue response not ok:', response.status, response.statusText);
       }
     } catch (err) {
       console.error('Revenue stats error:', err);
@@ -176,11 +171,9 @@ export default function AdminDashboard() {
       const data = await response.json();
       
       if (data.success) {
-        alert('Email system test successful! Check the console for details.');
-        console.log('Email test result:', data);
+        alert('Email system test successful!');
       } else {
         alert(`Email system test failed: ${data.error}`);
-        console.error('Email test error:', data);
       }
     } catch (err) {
       alert('Failed to test email system');

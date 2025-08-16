@@ -124,23 +124,10 @@ export default function AddProductPage() {
     try {
       const formData = new FormData(e.currentTarget);
       
-      console.log('Form submission - media count:', media.length);
-      console.log('Media files:', media.map(item => ({ name: item.file.name, type: item.file.type, size: item.file.size })));
-      
       // Add media files to FormData in the correct order
       media.forEach((item, index) => {
-        console.log(`Adding media ${index + 1}:`, item.file.name);
         formData.append('images', item.file);
       });
-
-      console.log('FormData entries:');
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`${key}:`, value.name, value.type, value.size);
-        } else {
-          console.log(`${key}:`, value);
-        }
-      }
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -153,7 +140,6 @@ export default function AddProductPage() {
         throw new Error(result.error || 'Failed to add product');
       }
 
-      console.log('Product created successfully:', result);
       setSuccess('Product added successfully!');
       setTimeout(() => router.push('/admin/products'), 1000);
     } catch (err) {

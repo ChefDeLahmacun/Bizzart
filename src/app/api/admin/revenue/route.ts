@@ -6,26 +6,10 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 // Get revenue statistics
 export async function GET() {
   try {
-    console.log('Revenue GET endpoint called');
-    
     const session = await getServerSession(authOptions);
-    console.log('Session:', session);
     
     if (!session || session.user?.role !== 'ADMIN') {
-      console.log('Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('User authorized, proceeding with query');
-
-    // First, let's test if we can connect to the database
-    try {
-      // Simple test query
-      const testQuery = await prisma.$queryRaw`SELECT 1 as test`;
-      console.log('Database connection test successful:', testQuery);
-    } catch (dbError) {
-      console.error('Database connection test failed:', dbError);
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
     }
 
     // Get all orders
@@ -38,30 +22,24 @@ export async function GET() {
           createdAt: true,
         },
       });
-      console.log('Orders fetched successfully:', orders.length);
     } catch (ordersError) {
-      console.error('Failed to fetch orders:', ordersError);
       return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
     }
 
     // Calculate total revenue
     const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-    console.log('Total revenue calculated:', totalRevenue);
     
-    // Test AdminSettings table
+    // Get AdminSettings
     let resetSetting = null;
     try {
       resetSetting = await prisma.adminSettings.findUnique({
         where: { key: 'revenue_last_reset' }
       });
-      console.log('Reset setting query successful:', resetSetting);
     } catch (adminError) {
-      console.error('Failed to query AdminSettings:', adminError);
       // Continue without reset setting for now
     }
     
     const lastResetDate = resetSetting?.value || null;
-    console.log('Last reset date:', lastResetDate);
     
     // Calculate revenue since last reset
     let revenueSinceReset = totalRevenue;
@@ -80,7 +58,6 @@ export async function GET() {
       completedOrders: orders.filter(o => o.status === 'COMPLETED').length,
     };
 
-    console.log('Revenue response data:', responseData);
     return NextResponse.json(responseData);
   } catch (error) {
     console.error('Revenue fetch error:', error);
@@ -94,18 +71,13 @@ export async function GET() {
 // Reset revenue (mark as reset)
 export async function POST(request: NextRequest) {
   try {
-    console.log('Revenue POST endpoint called');
-    
     const session = await getServerSession(authOptions);
-    console.log('Session for POST:', session);
     
     if (!session || session.user?.role !== 'ADMIN') {
-      console.log('Unauthorized POST attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { action } = await request.json();
-    console.log('Reset action requested:', action);
     
     if (action !== 'reset') {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -128,22 +100,6 @@ export async function POST(request: NextRequest) {
     // Store the current UTC time (this is what we want to store in database)
     const currentDate = now.toISOString();
     
-    console.log('Current UTC time:', now);
-    console.log('Turkish display time:', turkishDateString);
-    console.log('Current date ISO (UTC):', currentDate);
-    
-    console.log('Turkish date string:', turkishDateString);
-    
-    // Test AdminSettings table before upsert
-    try {
-      console.log('Testing AdminSettings table access...');
-      const testQuery = await prisma.adminSettings.findFirst();
-      console.log('AdminSettings test query successful:', testQuery);
-    } catch (testError) {
-      console.error('AdminSettings test query failed:', testError);
-      return NextResponse.json({ error: 'AdminSettings table access failed' }, { status: 500 });
-    }
-    
     // Store or update the reset date in database
     let upsertResult;
     try {
@@ -159,9 +115,7 @@ export async function POST(request: NextRequest) {
           updatedBy: session.user?.id || 'unknown'
         }
       });
-      console.log('Database upsert successful:', upsertResult);
     } catch (upsertError) {
-      console.error('Database upsert failed:', upsertError);
       return NextResponse.json({ error: 'Failed to save reset date' }, { status: 500 });
     }
     
@@ -172,7 +126,6 @@ export async function POST(request: NextRequest) {
       turkishDate: turkishDateString,
     };
     
-    console.log('Response data:', responseData);
     return NextResponse.json(responseData);
   } catch (error) {
     console.error('Revenue reset error:', error);

@@ -10,13 +10,13 @@ export default function PaymentSuccessPage() {
   const [orderId, setOrderId] = useState<string>('');
 
   useEffect(() => {
-    // Get payment_intent from URL params
-    const paymentIntent = searchParams.get('payment_intent');
     if (paymentIntent) {
-      // You could fetch order details using the payment intent
-      console.log('Payment successful for intent:', paymentIntent);
+      // Payment successful - additional logic can be added here
+      // - Sending confirmation emails
+      // - Updating inventory
+      // - Analytics tracking
     }
-  }, [searchParams]);
+  }, [paymentIntent]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-16 text-center">

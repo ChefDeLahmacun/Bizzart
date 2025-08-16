@@ -17,7 +17,6 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log('Missing credentials', credentials);
           throw new Error('Invalid credentials');
         }
 
@@ -28,12 +27,10 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          console.log('User not found for email:', credentials.email);
           throw new Error('Invalid credentials');
         }
 
         if (!user?.password) {
-          console.log('User has no password:', user);
           throw new Error('Invalid credentials');
         }
 
@@ -43,12 +40,10 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isCorrectPassword) {
-          console.log('Incorrect password for user:', user.email);
           throw new Error('Invalid credentials');
         }
 
         // Return only public fields
-        console.log('Login successful for user:', user.email);
         return {
           id: user.id,
           name: user.name,

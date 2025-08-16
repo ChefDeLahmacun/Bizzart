@@ -14,11 +14,6 @@ export function Navigation() {
   const { cart } = useCart();
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   
-  useEffect(() => {
-    console.log('Cart items:', cart);
-    console.log('Cart count:', cartCount);
-  }, [cart, cartCount]);
-
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Products', href: '/products' },

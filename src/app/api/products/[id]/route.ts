@@ -17,7 +17,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
-    console.log('Product fetched with colors:', product.colors || []);
+
     return NextResponse.json(product);
   } catch (error) {
     console.error('Failed to fetch product:', error);
@@ -59,14 +59,10 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     // Remove deleted media
     if (removeMediaIds && removeMediaIds.length > 0) {
-      console.log('Removing media IDs:', removeMediaIds);
+      // Remove media from database
       const deleteResult = await prisma.image.deleteMany({
-        where: {
-          id: { in: removeMediaIds },
-          productId: params.id,
-        },
+        where: { id: { in: removeMediaIds } }
       });
-      console.log('Delete result:', deleteResult);
     }
 
     // Handle new media uploads (append to existing)

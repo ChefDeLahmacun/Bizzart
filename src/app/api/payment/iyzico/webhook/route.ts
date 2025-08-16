@@ -24,8 +24,6 @@ export async function POST(request: NextRequest) {
     const data = JSON.parse(body);
     const { eventType, paymentId, conversationId, status } = data;
 
-    console.log('Iyzico webhook received:', { eventType, paymentId, conversationId, status });
-
     // Handle different event types
     switch (eventType) {
       case 'PAYMENT.SUCCESS':
@@ -47,12 +45,12 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'REFUND.SUCCESS':
-        // Handle refund success if needed
-        console.log('Refund successful for payment:', paymentId);
+        // Refund processed successfully
         break;
 
       default:
-        console.log('Unhandled event type:', eventType);
+        // Handle other event types as needed
+        break;
     }
 
     return NextResponse.json({ success: true });

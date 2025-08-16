@@ -10,10 +10,9 @@ import { MediaType } from "@prisma/client";
 export async function addProductAction(formData: FormData) {
   try {
     const session = await getServerSession(authOptions);
-    console.log("SESSION IN SERVER ACTION:", session);
 
-    if (!session || session.user?.role !== "ADMIN" || !session.user?.id) {
-      throw new Error("Unauthorized");
+    if (!session || session.user?.role !== 'ADMIN') {
+      throw new Error('Unauthorized');
     }
 
     const name = formData.get("name") as string;
