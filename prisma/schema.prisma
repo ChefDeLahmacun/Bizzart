@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,114 +15,112 @@ model User {
   role          Role      @default(USER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  products      Product[]
-  orders        Order[]
   emailVerified DateTime?
   image         String?
-  accounts      Account[]
-  sessions      Session[]
-  addresses     Address[]
   resetToken    String?
   resetTokenExp DateTime?
   language      String?   @default("en")
+  accounts      Account[]
+  addresses     Address[]
+  orders        Order[]
+  products      Product[]
+  sessions      Session[]
 }
 
 model Product {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String
   price       Float
   stock       Int
-  images      Image[]
-  category    Category  @relation(fields: [categoryId], references: [id])
   categoryId  String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  createdBy   User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   userId      String
+  depth       Float?
+  diameter    Float?
+  height      Float?
+  weight      Float?
+  width       Float?
+  colors      String[]
+  images      Image[]
   orderItems  OrderItem[]
-  // Size specifications (optional)
-  height      Float?    // in centimeters
-  width       Float?    // in centimeters
-  depth       Float?    // in centimeters
-  diameter    Float?    // in centimeters
-  weight      Float?    // in grams
-  // Color information
-  colors      String[]  // Array of colors for the product
+  category    Category    @relation(fields: [categoryId], references: [id])
+  createdBy   User        @relation(fields: [userId], references: [id])
 }
 
 model Image {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   url       String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   type      MediaType @default(IMAGE)
-  order     Int      @default(0)
+  order     Int       @default(0)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Category {
   id        String    @id @default(cuid())
   name      String    @unique
-  thumbnail String?   // URL to category thumbnail image
-  featured  Boolean   @default(false) // Whether category is featured on homepage
-  order     Int       @default(0) // Order for featured categories
-  products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  featured  Boolean   @default(false)
+  order     Int       @default(0)
+  thumbnail String?
+  products  Product[]
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  user         User        @relation(fields: [userId], references: [id])
-  userId       String
-  address      Address     @relation(fields: [addressId], references: [id])
-  addressId    String
-  items        OrderItem[]
-  status       OrderStatus @default(PENDING)
-  totalAmount  Float
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  refunds      Refund[]
+  id          String      @id @default(cuid())
+  userId      String
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  addressId   String
+  totalAmount Float
+  address     Address     @relation(fields: [addressId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  refunds     Refund[]
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  order     Order    @relation(fields: [orderId], references: [id])
+  id        String  @id @default(cuid())
   orderId   String
-  product   Product  @relation(fields: [productId], references: [id])
   productId String
   quantity  Int
   price     Float
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 }
 
 model Refund {
-  id           String      @id @default(cuid())
-  order        Order       @relation(fields: [orderId], references: [id])
-  orderId      String
-  amount       Float
-  reason       String
-  method       String      // AUTOMATIC, MANUAL, BANK_TRANSFER, etc.
-  status       String      // PENDING, PROCESSED, FAILED
-  processedBy  String      // User ID who processed the refund
-  processedAt  DateTime    @default(now())
-  notes        String?     // Additional notes
+  id          String   @id @default(cuid())
+  orderId     String
+  amount      Float
+  reason      String
+  method      String
+  status      String
+  processedBy String
+  processedAt DateTime @default(now())
+  notes       String?
+  order       Order    @relation(fields: [orderId], references: [id])
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -147,19 +142,19 @@ model VerificationToken {
 }
 
 model Address {
-  id          String   @id @default(cuid())
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String
-  line1       String
-  line2       String?
-  city        String
-  state       String?
-  postalCode  String
-  country     String
-  phone       String   // Add phone number for contact
-  orders      Order[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  country    String
+  phone      String
+  user       User     @relation(fields: [userId], references: [id])
+  orders     Order[]
 }
 
 model AdminSettings {
@@ -167,7 +162,7 @@ model AdminSettings {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
-  updatedBy String? // User ID who made the change
+  updatedBy String?
 }
 
 enum Role {
@@ -186,4 +181,4 @@ enum OrderStatus {
 enum MediaType {
   IMAGE
   VIDEO
-} 
+}
