@@ -89,8 +89,7 @@ export default function ProductDetailPage() {
 
         setRelatedProducts(data);
       })
-      .catch((error) => {
-        console.error("Failed to load related products:", error);
+      .catch(() => {
         setRelatedProducts([]);
       })
       .finally(() => {

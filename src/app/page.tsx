@@ -28,7 +28,7 @@ export default function Home() {
         setFeaturedCategories(data);
       }
     } catch (error) {
-      console.error('Failed to fetch featured categories:', error);
+      // Failed to fetch featured categories
     } finally {
       setLoading(false);
     }

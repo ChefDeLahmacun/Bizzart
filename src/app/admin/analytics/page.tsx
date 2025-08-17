@@ -77,7 +77,6 @@ export default function AnalyticsPage() {
       setAnalytics(data);
     } catch (error) {
       setError('Failed to load analytics');
-      console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
     }

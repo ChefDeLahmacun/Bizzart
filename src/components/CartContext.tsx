@@ -40,7 +40,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       try {
         setCart(JSON.parse(stored));
       } catch (error) {
-        console.error('Error parsing cart data:', error);
+        // Error parsing cart data
       }
     }
   }, []);

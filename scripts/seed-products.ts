@@ -122,7 +122,6 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding products:', e);
     process.exit(1);
   })
   .finally(async () => {

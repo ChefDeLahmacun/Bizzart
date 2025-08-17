@@ -82,7 +82,6 @@ export default function ProductsPage() {
       setProducts(data);
     } catch (err) {
       setError('Failed to load products');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -96,7 +95,7 @@ export default function ProductsPage() {
         setRecentlyViewed(data);
       }
     } catch (err) {
-      console.error('Failed to fetch recently viewed:', err);
+      // Failed to fetch recently viewed
     }
   };
 
@@ -110,7 +109,7 @@ export default function ProductsPage() {
         setShowSuggestions(true);
       }
     } catch (err) {
-      console.error('Failed to fetch suggestions:', err);
+      // Failed to fetch suggestions
     }
   };
 
@@ -142,7 +141,6 @@ export default function ProductsPage() {
       setProducts(data);
     } catch (err) {
       setError('Search failed');
-      console.error(err);
     } finally {
       setLoading(false);
     }

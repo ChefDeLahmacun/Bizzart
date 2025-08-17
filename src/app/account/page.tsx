@@ -141,7 +141,7 @@ export default function AccountPage() {
       try {
         setPreferences(JSON.parse(savedPreferences));
       } catch (error) {
-        console.error('Error parsing saved preferences:', error);
+        // Error parsing saved preferences
       }
     }
   }, [loadAddresses, loadOrders]);

@@ -71,9 +71,9 @@ function SortableMediaItem({ id, url, type, onRemove }: { id: string; url: strin
         return () => {
           URL.revokeObjectURL(blobUrl);
         };
-      } catch (e) {
-        console.error('Failed to convert base64 video:', e);
-      }
+              } catch (e) {
+          // Failed to convert base64 video
+        }
     } else {
       setVideoUrl(url);
     }
