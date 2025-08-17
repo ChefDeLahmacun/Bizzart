@@ -101,10 +101,8 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Failed to send email:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
@@ -128,10 +126,8 @@ export const sendOrderCompleted = async (order: Order, user: User) => {
 export const testEmail = async () => {
   try {
     const result = await transporter.verify();
-    console.log('SMTP connection verified:', result);
     return { success: true, message: 'SMTP connection verified' };
   } catch (error) {
-    console.error('SMTP verification failed:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };

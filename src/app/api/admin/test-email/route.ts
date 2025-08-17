@@ -26,7 +26,6 @@ export async function GET() {
       }, { status: 500 });
     }
   } catch (error) {
-    console.error('Email test error:', error);
     return NextResponse.json({
       success: false,
       message: 'Failed to test email system',

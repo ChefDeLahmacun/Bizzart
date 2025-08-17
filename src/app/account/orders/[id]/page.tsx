@@ -90,7 +90,6 @@ export default function OrderTrackingPage() {
       setOrder(data);
     } catch (error) {
       setError("Failed to load order");
-      console.error('Error fetching order:', error);
     } finally {
       setLoading(false);
     }

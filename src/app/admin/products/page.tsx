@@ -43,7 +43,6 @@ export default function AdminProductsPage() {
       setProducts(data);
     } catch (err) {
       setError('Failed to load products');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -62,7 +61,6 @@ export default function AdminProductsPage() {
       // Remove the deleted product from the state
       setProducts(products.filter(p => p.id !== productId));
     } catch (err) {
-      console.error('Failed to delete product:', err);
       alert('Failed to delete product');
     }
   };

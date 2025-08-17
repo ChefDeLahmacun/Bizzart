@@ -80,7 +80,7 @@ export default function CheckoutPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch addresses:', error);
+      // Failed to fetch addresses
     }
   };
 

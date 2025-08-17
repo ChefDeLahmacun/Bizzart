@@ -177,7 +177,6 @@ export class FileUploadService {
     if (!isValidType) {
       // Check if it's a video file that might have a different MIME type
       if (file.type.startsWith('video/')) {
-        console.warn(`Video file with MIME type ${file.type} detected. Attempting to process anyway.`);
         return { success: true };
       }
       

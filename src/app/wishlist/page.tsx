@@ -50,7 +50,6 @@ export default function WishlistPage() {
             }
             return null;
           } catch (error) {
-            console.error(`Failed to fetch product ${productId}:`, error);
             return null;
           }
         })
@@ -60,7 +59,7 @@ export default function WishlistPage() {
       const validProducts = products.filter(product => product !== null);
       setWishlistProducts(validProducts);
     } catch (error) {
-      console.error('Failed to load wishlist:', error);
+      // Failed to load wishlist
     } finally {
       setLoading(false);
     }
@@ -75,7 +74,7 @@ export default function WishlistPage() {
       // Update local state
       setWishlistProducts(prev => prev.filter(product => product.id !== productId));
     } catch (error) {
-      console.error('Failed to remove from wishlist:', error);
+      // Failed to remove from wishlist
     }
   };
 

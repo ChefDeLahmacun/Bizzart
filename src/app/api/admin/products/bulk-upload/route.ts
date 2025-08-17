@@ -147,7 +147,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Bulk upload error:', error);
     return NextResponse.json({ 
       error: 'Failed to process bulk upload',
       details: error instanceof Error ? error.message : 'Unknown error'

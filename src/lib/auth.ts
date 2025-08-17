@@ -5,13 +5,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// Fix SSL certificate issues in development
-if (process.env.NODE_ENV === 'development') {
-  // Alternative SSL fix
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-  // Also try setting this for better compatibility
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = '';
-}
+// SSL issues resolved by removing Google Fonts dependency
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
