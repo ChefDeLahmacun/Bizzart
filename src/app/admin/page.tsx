@@ -214,8 +214,8 @@ export default function AdminDashboard() {
     });
     
     return Object.entries(categoryCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+      .map(([name, count]) => ({ name, productCount: count }))
+      .sort((a, b) => b.productCount - a.productCount)
       .slice(0, 5);
   };
 
@@ -271,10 +271,10 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
               <ShoppingBagIcon className="h-6 w-6 text-blue-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total Products</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.totalProducts || 0}</p>
             </div>
@@ -283,10 +283,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
               <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
               <p className="text-2xl font-semibold text-gray-900">₺{stats?.totalRevenue?.toFixed(2) || '0.00'}</p>
             </div>
@@ -295,10 +295,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
+            <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
               <UserGroupIcon className="h-6 w-6 text-purple-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total Users</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.totalUsers || 0}</p>
             </div>
@@ -307,10 +307,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
           <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
+            <div className="p-2 bg-orange-100 rounded-lg flex-shrink-0">
               <ChartBarIcon className="h-6 w-6 text-orange-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Total Orders</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.totalOrders || 0}</p>
             </div>
@@ -322,10 +322,10 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-teal-500">
           <div className="flex items-center">
-            <div className="p-2 bg-teal-100 rounded-lg">
+            <div className="p-2 bg-teal-100 rounded-lg flex-shrink-0">
               <ChartBarIcon className="h-6 w-6 text-teal-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
               <p className="text-2xl font-semibold text-gray-900">₺{stats?.averageOrderValue?.toFixed(2) || '0.00'}</p>
             </div>
@@ -334,10 +334,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500">
           <div className="flex items-center">
-            <div className="p-2 bg-indigo-100 rounded-lg">
+            <div className="p-2 bg-indigo-100 rounded-lg flex-shrink-0">
               <ChartBarIcon className="h-6 w-6 text-indigo-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Customer Purchase Rate</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.conversionRate?.toFixed(1) || '0.0'}%</p>
             </div>
@@ -346,10 +346,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-pink-500">
           <div className="flex items-center">
-            <div className="p-2 bg-pink-100 rounded-lg">
+            <div className="p-2 bg-pink-100 rounded-lg flex-shrink-0">
               <ChartBarIcon className="h-6 w-6 text-pink-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.lowStockProducts || 0}</p>
             </div>
@@ -358,10 +358,10 @@ export default function AdminDashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
+            <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
               <ClockIcon className="h-6 w-6 text-yellow-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-4 min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600">Pending Orders</p>
               <p className="text-2xl font-semibold text-gray-900">{stats?.pendingOrders || 0}</p>
             </div>
@@ -371,15 +371,15 @@ export default function AdminDashboard() {
 
       {/* Revenue Management Section */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-            <CurrencyDollarIcon className="h-6 w-6 text-green-600 mr-2" />
+            <CurrencyDollarIcon className="h-6 w-6 text-green-600 mr-2 flex-shrink-0" />
             Revenue Management
           </h2>
           <button
             onClick={resetRevenue}
             disabled={revenueLoading}
-            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
             <ArrowPathIcon className="h-4 w-4 mr-2" />
             {revenueLoading ? 'Resetting...' : 'Reset Revenue'}
@@ -409,7 +409,7 @@ export default function AdminDashboard() {
           
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-600">Last Reset Date</p>
-            <p className="text-lg font-medium text-gray-900">
+            <p className="text-lg font-medium text-gray-900 break-words">
               {revenueStats?.lastResetDate 
                 ? new Date(revenueStats.lastResetDate).toLocaleString('tr-TR', {
                     timeZone: 'Europe/Istanbul',
@@ -435,12 +435,12 @@ export default function AdminDashboard() {
         {/* Monthly Revenue Chart */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
-            <ChartBarIcon className="h-6 w-6 text-blue-600 mr-2" />
+            <ChartBarIcon className="h-6 w-6 text-blue-600 mr-2 flex-shrink-0" />
             Monthly Revenue
           </h2>
-          <div className="h-64 flex items-end justify-between space-x-2">
+          <div className="h-64 flex items-end justify-between space-x-2 overflow-x-auto">
             {stats?.monthlyRevenue?.map((month, index) => (
-              <div key={month.month} className="flex flex-col items-center">
+              <div key={month.month} className="flex flex-col items-center flex-shrink-0">
                 <div 
                   className="w-8 bg-blue-500 rounded-t"
                   style={{ 
@@ -457,14 +457,14 @@ export default function AdminDashboard() {
         {/* Order Status Breakdown */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
-            <ChartBarIcon className="h-6 w-6 text-green-600 mr-2" />
+            <ChartBarIcon className="h-6 w-6 text-green-600 mr-2 flex-shrink-0" />
             Order Status Breakdown
           </h2>
           <div className="space-y-3">
             {stats?.orderStatusBreakdown?.map((status) => (
               <div key={status.status} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 capitalize">{status.status}</span>
-                <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700 capitalize truncate mr-2">{status.status}</span>
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="w-24 bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-green-500 h-2 rounded-full"
@@ -486,19 +486,19 @@ export default function AdminDashboard() {
         {/* Top Categories */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
-            <ChartBarIcon className="h-6 w-6 text-purple-600 mr-2" />
+            <ChartBarIcon className="h-6 w-6 text-purple-600 mr-2 flex-shrink-0" />
             Top Categories
           </h2>
           <div className="space-y-3">
             {stats?.topCategories?.map((category, index) => (
               <div key={category.name} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-bold">
+                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
                     {index + 1}
                   </span>
-                  <span className="text-sm font-medium text-gray-700">{category.name}</span>
+                  <span className="text-sm font-medium text-gray-700 truncate">{category.name}</span>
                 </div>
-                <span className="text-sm text-gray-600">{category.productCount} products</span>
+                <span className="text-sm text-gray-600 flex-shrink-0 ml-2">{category.productCount} products</span>
               </div>
             ))}
           </div>
@@ -507,12 +507,12 @@ export default function AdminDashboard() {
         {/* Customer Growth */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
-            <ChartBarIcon className="h-6 w-6 text-indigo-600 mr-2" />
+            <ChartBarIcon className="h-6 w-6 text-indigo-600 mr-2 flex-shrink-0" />
             Customer Growth
           </h2>
-          <div className="h-64 flex items-end justify-between space-x-2">
+          <div className="h-64 flex items-end justify-between space-x-2 overflow-x-auto">
             {stats?.customerGrowth?.map((month, index) => (
-              <div key={month.month} className="flex flex-col items-center">
+              <div key={month.month} className="flex flex-col items-center flex-shrink-0">
                 <div 
                   className="w-8 bg-indigo-500 rounded-t"
                   style={{ 
@@ -532,15 +532,15 @@ export default function AdminDashboard() {
         {/* Alerts */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
-            <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-2" />
+            <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-2 flex-shrink-0" />
             Alerts & Notifications
           </h2>
           <div className="space-y-3">
             {stats?.lowStockProducts && stats.lowStockProducts > 0 && (
-              <div className="flex items-center p-3 bg-orange-50 border border-orange-200 rounded-md">
-                <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-orange-800">
+              <div className="flex items-start p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-3 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-orange-800 break-words">
                     {stats.lowStockProducts} products have low stock (&lt;5 items)
                   </p>
                   <Link href="/admin/products" className="text-xs text-orange-600 hover:underline">
@@ -551,10 +551,10 @@ export default function AdminDashboard() {
             )}
             
             {stats?.pendingOrders && stats.pendingOrders > 0 && (
-              <div className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <ClockIcon className="h-5 w-5 text-blue-500 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-blue-800">
+              <div className="flex items-start p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <ClockIcon className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-blue-800 break-words">
                     {stats.pendingOrders} orders pending processing
                   </p>
                   <Link href="/admin/orders" className="text-xs text-blue-600 hover:underline">
@@ -566,7 +566,7 @@ export default function AdminDashboard() {
 
             {(!stats?.lowStockProducts || stats.lowStockProducts === 0) && (!stats?.pendingOrders || stats.pendingOrders === 0) && (
               <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-md">
-                <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3" />
+                <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                 <p className="text-sm font-medium text-green-800">All systems operational</p>
               </div>
             )}
@@ -639,11 +639,11 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {stats.recentOrders.map((order: any) => (
                 <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Order #{order.id.slice(-8)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">Order #{order.id.slice(-8)}</p>
                     <p className="text-xs text-gray-600">₺{order.totalAmount?.toFixed(2) || '0.00'}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right ml-4 flex-shrink-0">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                       order.status === 'PROCESSING' ? 'bg-blue-100 text-blue-800' :
@@ -673,11 +673,11 @@ export default function AdminDashboard() {
             <div className="space-y-3">
               {stats.topProducts.map((product: any) => (
                 <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                     <p className="text-xs text-gray-600">Stock: {product.stock || 0}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right ml-4 flex-shrink-0">
                     <p className="text-sm font-medium text-gray-900">₺{product.price?.toFixed(2) || '0.00'}</p>
                   </div>
                 </div>
