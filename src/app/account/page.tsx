@@ -403,7 +403,7 @@ export default function AccountPage() {
   // Tab navigation component
   const TabNavigation = () => (
     <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8">
+      <nav className="-mb-px flex space-x-8 overflow-x-auto">
         {[
           { id: 'profile', label: 'Profile', icon: '👤' },
           { id: 'orders', label: 'Orders', icon: '📦' },
@@ -413,7 +413,7 @@ export default function AccountPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabType)}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-white text-white'
                 : 'border-transparent text-white hover:text-gray-300 hover:border-gray-300'
@@ -434,8 +434,8 @@ export default function AccountPage() {
         <h2 className="text-lg font-semibold mb-4 text-black">Profile Information</h2>
         <p className="text-gray-700 mb-4">{t('greeting')}, <span className="font-semibold">{session.user?.name || session.user?.email}</span>!</p>
         <ul className="list-disc pl-5 text-gray-600 mb-4">
-          <li>{t('email')}: <span className="font-mono">{session.user?.email}</span></li>
-          {session.user?.role && <li>{t('role')}: <span className="font-mono">{session.user.role}</span></li>}
+          <li>{t('email')}: <span className="font-mono break-all">{session.user?.email}</span></li>
+          {session.user?.role && <li>{t('role')}: <span className="font-mono break-all">{session.user.role}</span></li>}
         </ul>
         <div className="mt-6">
           <button
@@ -556,8 +556,8 @@ export default function AccountPage() {
           {orders.map((order) => (
             <div key={order.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-medium text-gray-900">Order #{order.id.slice(-8)}</h3>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-gray-900 truncate">Order #{order.id.slice(-8)}</h3>
                   <p className="text-sm text-gray-600">
                     {new Date(order.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
@@ -566,7 +566,7 @@ export default function AccountPage() {
                     })}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-right ml-4 flex-shrink-0">
                   <p className="font-semibold text-lg text-black">₺{order.totalAmount.toFixed(2)}</p>
                   <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                     order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -586,7 +586,7 @@ export default function AccountPage() {
                 <div className="space-y-2">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
+                      <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         {item.product.images && item.product.images.length > 0 ? (
                           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                             <span className="text-xs text-gray-600">📷</span>
@@ -597,11 +597,11 @@ export default function AccountPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{item.product.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                         <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
                       </div>
-                      <p className="text-sm font-medium text-gray-900">₺{(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="text-sm font-medium text-gray-900 flex-shrink-0">₺{(item.price * item.quantity).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
@@ -611,12 +611,14 @@ export default function AccountPage() {
               {order.address && (
                 <div className="border-t border-gray-200 pt-3">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Shipping Address:</h4>
-                  <p className="text-sm text-gray-600">{order.address.line1}</p>
-                  <p className="text-sm text-gray-600">
-                    {order.address.city}, {order.address.state && `${order.address.state}, `}{order.address.postalCode}
-                  </p>
-                  <p className="text-sm text-gray-600">{order.address.country}</p>
-                  <p className="text-sm text-gray-600">📞 {order.address.phone}</p>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p className="break-words">{order.address.line1}</p>
+                    <p className="break-words">
+                      {order.address.city}, {order.address.state && `${order.address.state}, `}{order.address.postalCode}
+                    </p>
+                    <p className="break-words">{order.address.country}</p>
+                    <p className="break-words">📞 {order.address.phone}</p>
+                  </div>
                 </div>
               )}
 
@@ -893,7 +895,7 @@ export default function AccountPage() {
           {addresses.map((address) => (
             <div key={address.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-start">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       📍 Address
@@ -904,15 +906,17 @@ export default function AccountPage() {
                       </span>
                     )}
                   </div>
-                  <p className="font-medium text-gray-900">{address.line1}</p>
-                  {address.line2 && <p className="text-gray-600">{address.line2}</p>}
-                  <p className="text-gray-600">
-                    {address.city}, {address.state && `${address.state}, `}{address.postalCode}
-                  </p>
-                  <p className="text-gray-600">{address.country}</p>
-                  <p className="text-gray-600">📞 {address.phone}</p>
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900 break-words">{address.line1}</p>
+                    {address.line2 && <p className="text-gray-600 break-words">{address.line2}</p>}
+                    <p className="text-gray-600 break-words">
+                      {address.city}, {address.state && `${address.state}, `}{address.postalCode}
+                    </p>
+                    <p className="text-gray-600 break-words">{address.country}</p>
+                    <p className="text-gray-600 break-words">📞 {address.phone}</p>
+                  </div>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex gap-2 ml-4 flex-shrink-0">
                   {addresses.indexOf(address) !== 0 && (
                     <button
                       onClick={() => setDefaultAddress(address.id)}
