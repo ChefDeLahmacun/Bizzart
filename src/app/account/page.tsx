@@ -122,7 +122,7 @@ export default function AccountPage() {
       if (!response.ok) throw new Error('Failed to fetch orders');
       const data = await response.json();
       // Filter orders for current user
-      const userOrders = data.filter((order: any) => order.userId === session.user.id);
+      const userOrders = data.filter((order: { userId: string }) => order.userId === session.user.id);
       setOrders(userOrders);
     } catch (error) {
       setOrdersError('Failed to load orders');
@@ -178,8 +178,8 @@ export default function AccountPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-    } catch (err: any) {
-      setPwError(err.message || "Failed to change password");
+    } catch (err: unknown) {
+      setPwError(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setPwLoading(false);
     }
@@ -366,7 +366,7 @@ export default function AccountPage() {
       if ('Notification' in window) {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          alert('Push notifications enabled! You\'ll receive updates about your orders.');
+          alert('Push notifications enabled! You&apos;ll receive updates about your orders.');
         } else if (permission === 'denied') {
           alert('Push notifications were denied. You can enable them in your browser settings.');
         }
@@ -588,11 +588,9 @@ export default function AccountPage() {
                     <div key={item.id} className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
                         {item.product.images && item.product.images.length > 0 ? (
-                          <img 
-                            src={item.product.images[0].url} 
-                            alt={item.product.name} 
-                            className="w-full h-full object-cover" 
-                          />
+                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-gray-600">📷</span>
+                          </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
                             No image

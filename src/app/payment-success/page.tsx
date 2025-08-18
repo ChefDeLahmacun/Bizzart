@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [orderId, setOrderId] = useState<string>('');
+  const [paymentIntent, setPaymentIntent] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get payment intent from URL params
+    const intent = searchParams.get('payment_intent');
+    if (intent) {
+      setPaymentIntent(intent);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (paymentIntent) {
@@ -35,7 +44,7 @@ export default function PaymentSuccessPage() {
 
       {/* Order Details */}
       <div className="bg-white/10 rounded-lg p-8 mb-8 max-w-md mx-auto">
-        <h2 className="text-lg font-semibold text-white mb-4">What's Next?</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">What&apos;s Next?</h2>
         <ul className="text-gray-300 space-y-3 text-left">
           <li className="flex items-center">
             <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
@@ -47,7 +56,7 @@ export default function PaymentSuccessPage() {
           </li>
           <li className="flex items-center">
             <span className="w-2 h-2 bg-purple-400 rounded-full mr-3"></span>
-            You'll receive shipping updates via email
+            You&apos;ll receive shipping updates via email
           </li>
         </ul>
       </div>
@@ -74,5 +83,18 @@ export default function PaymentSuccessPage() {
         <p className="mt-2">A confirmation email has been sent to your email address.</p>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+        <p className="text-gray-300">Loading...</p>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

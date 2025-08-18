@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { 
   TruckIcon, 
   CheckCircleIcon, 
-  ClockIcon, 
-  XCircleIcon,
+  XCircleIcon, 
+  ClockIcon,
   MapPinIcon,
   PhoneIcon,
-  CalendarIcon
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 
 interface OrderItem {
@@ -53,24 +52,11 @@ interface TrackingEvent {
 
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session, status } = useSession();
-  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-
-    if (id) {
-      fetchOrder();
-    }
-  }, [id, session, router]);
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/orders/${id}`);
@@ -93,7 +79,13 @@ export default function OrderTrackingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchOrder();
+    }
+  }, [id, fetchOrder]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -180,33 +172,6 @@ export default function OrderTrackingPage() {
     return events.reverse(); // Show most recent first
   };
 
-  if (status === "loading") {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Please log in to view your orders.</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -224,7 +189,7 @@ export default function OrderTrackingPage() {
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "Order not found"}</p>
           <button
-            onClick={() => router.push('/account')}
+            onClick={() => window.history.back()}
             className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
           >
             Back to Account
@@ -241,7 +206,7 @@ export default function OrderTrackingPage() {
       {/* Header */}
       <div className="mb-8">
         <button
-          onClick={() => router.push('/account')}
+          onClick={() => window.history.back()}
           className="text-blue-600 hover:text-blue-800 mb-4 flex items-center"
         >
           ← Back to Account
@@ -406,7 +371,7 @@ export default function OrderTrackingPage() {
               Questions about your order? We're here to help!
             </p>
             <button
-              onClick={() => router.push('/contact')}
+              onClick={() => window.location.href = '/contact'}
               className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
             >
               Contact Support
