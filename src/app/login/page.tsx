@@ -34,21 +34,34 @@ export default function LoginPage() {
         password,
         redirect: false,
       });
+      
+      console.log("Sign in result:", result);
+      
       if (result?.error) {
-        setError("Invalid credentials");
+        console.error("Sign in error:", result.error);
+        setError(`Login failed: ${result.error}`);
         setIsLoading(false);
       } else {
         // Fetch the session to get the user role
-        const sessionRes = await fetch("/api/auth/session");
-        const sessionData = await sessionRes.json();
-        if (sessionData?.user?.role === "ADMIN") {
-          router.push("/admin");
-        } else {
-          router.push("/");
+        try {
+          const sessionRes = await fetch("/api/auth/session");
+          const sessionData = await sessionRes.json();
+          console.log("Session data:", sessionData);
+          
+          if (sessionData?.user?.role === "ADMIN") {
+            router.push("/admin");
+          } else {
+            router.push("/");
+          }
+        } catch (sessionError) {
+          console.error("Session fetch error:", sessionError);
+          setError("Failed to get user session");
+          setIsLoading(false);
         }
       }
     } catch (e) {
-      setError("An error occurred during login");
+      console.error("Login error:", e);
+      setError(`An error occurred during login: ${e instanceof Error ? e.message : 'Unknown error'}`);
       setIsLoading(false);
     }
   };
