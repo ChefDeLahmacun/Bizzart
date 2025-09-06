@@ -52,6 +52,7 @@ export default function ProductsPage() {
   });
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showRecentlyViewed, setShowRecentlyViewed] = useState(false);
 
   // Available colors for filtering
   const availableColors = ['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Black', 'White', 'Gray', 'Natural', 'Terracotta', 'Ceramic'];
@@ -232,25 +233,6 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Advanced Filters Toggle */}
-      <div className="mb-6 flex justify-between items-center">
-        <button
-          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          <FunnelIcon className="h-5 w-5" />
-          <span>Advanced Filters</span>
-        </button>
-        
-        {Object.values(filters).some(f => Array.isArray(f) ? f.length > 0 : f) && (
-          <button
-            onClick={clearFilters}
-            className="px-4 py-2 text-sm text-white hover:text-gray-200 underline"
-          >
-            Clear All Filters
-          </button>
-        )}
-      </div>
 
       {/* Advanced Filters */}
       {showAdvancedFilters && (
@@ -401,13 +383,44 @@ export default function ProductsPage() {
         </select>
       </div>
 
-      {/* Recently Viewed Products */}
-      {recentlyViewed.length > 0 && (
+      {/* Recently Viewed Products and Advanced Filters */}
+      <div className="mb-6 flex justify-between items-center">
+        {recentlyViewed.length > 0 && (
+          <button
+            onClick={() => setShowRecentlyViewed(!showRecentlyViewed)}
+            className="flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md shadow-sm hover:shadow-md transition-all duration-200 group"
+          >
+            <EyeIcon className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
+            <span className="text-sm">Recently Viewed</span>
+            <span className="ml-2 text-xs">
+              {showRecentlyViewed ? '▼' : '▶'}
+            </span>
+          </button>
+        )}
+        
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <FunnelIcon className="h-5 w-5" />
+            <span>Advanced Filters</span>
+          </button>
+          
+          {Object.values(filters).some(f => Array.isArray(f) ? f.length > 0 : f) && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-sm text-white hover:text-gray-200 underline"
+            >
+              Clear All Filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Recently Viewed Products Content */}
+      {recentlyViewed.length > 0 && showRecentlyViewed && (
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <EyeIcon className="h-6 w-6 mr-2 text-indigo-600" />
-            Recently Viewed
-          </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {recentlyViewed.map((product) => (
               <Link
