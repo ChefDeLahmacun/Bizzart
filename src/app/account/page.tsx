@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession, signOut, signIn } from "next-auth/react";
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import AddressForm from '@/components/AddressForm';
 
 interface Address {
   id: string;
@@ -100,6 +101,9 @@ export default function AccountPage() {
   const [preferencesSuccess, setPreferencesSuccess] = useState("");
   const [preferencesError, setPreferencesError] = useState("");
 
+  // Track if data has been loaded to prevent re-loading
+  const dataLoadedRef = useRef(false);
+
   // Load addresses when session is available
   const loadAddresses = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -131,11 +135,20 @@ export default function AccountPage() {
     }
   }, [session?.user?.id]);
 
+  // Load data when session becomes available (only once)
   useEffect(() => {
-    loadAddresses();
-    loadOrders();
-    
-    // Load user preferences from localStorage
+    if (session?.user?.id && !dataLoadedRef.current) {
+      loadAddresses();
+      loadOrders();
+      dataLoadedRef.current = true;
+    } else if (!session?.user?.id) {
+      // Reset when user logs out
+      dataLoadedRef.current = false;
+    }
+  }, [session?.user?.id]);
+
+  // Load user preferences from localStorage (only once)
+  useEffect(() => {
     const savedPreferences = localStorage.getItem('userPreferences');
     if (savedPreferences) {
       try {
@@ -144,7 +157,29 @@ export default function AccountPage() {
         // Error parsing saved preferences
       }
     }
-  }, [loadAddresses, loadOrders]);
+  }, []);
+
+  // Early returns after all hooks
+  if (status === "loading") {
+    return <div className="max-w-4xl mx-auto p-6">Loading...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-6 text-black">Account</h1>
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-700 mb-4">You are not logged in.</p>
+          <button
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+            onClick={() => signIn()}
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Password change function
   async function handlePasswordChange(e: React.FormEvent<HTMLFormElement>) {
@@ -211,7 +246,7 @@ export default function AccountPage() {
   }
 
   // Address management functions
-  const handleAddAddress = async (e: React.FormEvent) => {
+  const handleAddAddress = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user?.id) return;
     
@@ -237,9 +272,9 @@ export default function AccountPage() {
     } finally {
       setAddressLoading(false);
     }
-  };
+  }, [session?.user?.id, addressForm, t, loadAddresses]);
 
-  const handleEditAddress = async (e: React.FormEvent) => {
+  const handleEditAddress = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user?.id || !editingAddress) return;
     
@@ -265,9 +300,9 @@ export default function AccountPage() {
     } finally {
       setAddressLoading(false);
     }
-  };
+  }, [session?.user?.id, editingAddress, addressForm, t, loadAddresses]);
 
-  const handleDeleteAddress = async (addressId: string) => {
+  const handleDeleteAddress = useCallback(async (addressId: string) => {
     if (!session?.user?.id) return;
     
     if (!confirm('Are you sure you want to delete this address?')) return;
@@ -286,9 +321,9 @@ export default function AccountPage() {
     } catch (error) {
       setAddressError('Failed to delete address');
     }
-  };
+  }, [session?.user?.id, t, loadAddresses]);
 
-  const setDefaultAddress = async (addressId: string) => {
+  const setDefaultAddress = useCallback(async (addressId: string) => {
     if (!session?.user?.id) return;
     
     try {
@@ -311,7 +346,13 @@ export default function AccountPage() {
     } catch (error) {
       setAddressError('Failed to update default address');
     }
-  };
+  }, [session?.user?.id, addresses]);
+
+  const cancelEdit = useCallback(() => {
+    setAddressForm({ line1: "", line2: "", city: "", state: "", postalCode: "", country: "", phone: "" });
+    setShowAddForm(false);
+    setEditingAddress(null);
+  }, []);
 
   const startEditAddress = (address: Address) => {
     setEditingAddress(address);
@@ -326,13 +367,6 @@ export default function AccountPage() {
     });
   };
 
-  const cancelEdit = () => {
-    setEditingAddress(null);
-    setShowAddForm(false);
-    setAddressForm({ line1: "", line2: "", city: "", state: "", postalCode: "", country: "", phone: "" });
-    setAddressError("");
-    setAddressSuccess("");
-  };
 
   // Preferences functions
   const handlePreferencesUpdate = async (e: React.FormEvent) => {
@@ -378,27 +412,6 @@ export default function AccountPage() {
       alert('Failed to enable push notifications.');
     }
   };
-
-  if (status === "loading") {
-    return <div className="max-w-4xl mx-auto p-6">Loading...</div>;
-  }
-
-  if (!session) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6 text-black">Account</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-gray-700 mb-4">You are not logged in.</p>
-          <button
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-            onClick={() => signIn()}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // Tab navigation component
   const TabNavigation = () => (
@@ -756,7 +769,7 @@ export default function AccountPage() {
   );
 
   // Addresses tab content
-  const AddressesTab = () => (
+  const AddressesTab = useMemo(() => (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-black">{t('delivery_addresses')}</h2>
@@ -775,116 +788,15 @@ export default function AccountPage() {
 
       {/* Address Form */}
       {(showAddForm || editingAddress) && (
-        <form onSubmit={editingAddress ? handleEditAddress : handleAddAddress} className="mb-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="line1" className="block text-sm font-medium text-gray-700">
-                {t('address_line1')} *
-              </label>
-              <input
-                type="text"
-                id="line1"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.line1}
-                onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="line2" className="block text-sm font-medium text-gray-700">
-                {t('address_line2')}
-              </label>
-              <input
-                type="text"
-                id="line2"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.line2}
-                onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                {t('city')} *
-              </label>
-              <input
-                type="text"
-                id="city"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.city}
-                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                {t('state')}
-              </label>
-              <input
-                type="text"
-                id="state"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.state}
-                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
-                {t('postal_code')} *
-              </label>
-              <input
-                type="text"
-                id="postalCode"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.postalCode}
-                onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                {t('country')} *
-              </label>
-              <input
-                type="text"
-                id="country"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.country}
-                onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
-              />
-            </div>
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone Number *
-              </label>
-              <input
-                type="text"
-                id="phone"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm text-black"
-                value={addressForm.phone}
-                onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                placeholder="+90 555 123 4567"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={addressLoading}
-              className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition disabled:opacity-50"
-            >
-              {addressLoading ? t('loading') : (editingAddress ? t('save_address') : t('add_address'))}
-            </button>
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
-            >
-              {t('cancel')}
-            </button>
-          </div>
-        </form>
+        <AddressForm
+          addressForm={addressForm}
+          setAddressForm={setAddressForm}
+          editingAddress={editingAddress}
+          addressLoading={addressLoading}
+          handleAddAddress={handleAddAddress}
+          handleEditAddress={handleEditAddress}
+          onCancel={cancelEdit}
+        />
       )}
 
       {/* Address List */}
@@ -894,7 +806,7 @@ export default function AccountPage() {
         <div className="space-y-4">
           {addresses.map((address) => (
             <div key={address.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -907,20 +819,20 @@ export default function AccountPage() {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <p className="font-medium text-gray-900 break-words">{address.line1}</p>
-                    {address.line2 && <p className="text-gray-600 break-words">{address.line2}</p>}
-                    <p className="text-gray-600 break-words">
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">{address.line1}</p>
+                    {address.line2 && <p className="text-gray-600 text-sm sm:text-base">{address.line2}</p>}
+                    <p className="text-gray-600 text-sm sm:text-base">
                       {address.city}, {address.state && `${address.state}, `}{address.postalCode}
                     </p>
-                    <p className="text-gray-600 break-words">{address.country}</p>
-                    <p className="text-gray-600 break-words">📞 {address.phone}</p>
+                    <p className="text-gray-600 text-sm sm:text-base">{address.country}</p>
+                    <p className="text-gray-600 text-sm sm:text-base">📞 {address.phone}</p>
                   </div>
                 </div>
-                <div className="flex gap-2 ml-4 flex-shrink-0">
+                <div className="flex flex-wrap gap-2 sm:ml-4 flex-shrink-0">
                   {addresses.indexOf(address) !== 0 && (
                     <button
                       onClick={() => setDefaultAddress(address.id)}
-                      className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      className="px-2 py-1 text-xs sm:text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
                       title="Set as default address"
                     >
                       Set Default
@@ -928,13 +840,13 @@ export default function AccountPage() {
                   )}
                   <button
                     onClick={() => startEditAddress(address)}
-                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className="px-2 py-1 text-xs sm:text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                   >
                     {t('edit_address')}
                   </button>
                   <button
                     onClick={() => handleDeleteAddress(address.id)}
-                    className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                    className="px-2 py-1 text-xs sm:text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
                   >
                     {t('delete_address')}
                   </button>
@@ -945,7 +857,7 @@ export default function AccountPage() {
         </div>
       )}
     </div>
-  );
+  ), [showAddForm, editingAddress, addressError, addressSuccess, addressForm, addressLoading, addresses, t, handleAddAddress, handleEditAddress, handleDeleteAddress, setDefaultAddress]);
 
   // Render the appropriate tab content
   const renderTabContent = () => {
@@ -955,7 +867,7 @@ export default function AccountPage() {
       case 'orders':
         return <OrdersTab />;
       case 'addresses':
-        return <AddressesTab />;
+        return AddressesTab;
       case 'preferences':
         return <PreferencesTab />;
       default:
