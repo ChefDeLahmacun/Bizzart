@@ -4,23 +4,25 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-interface ImageZoomProps {
+interface ProductImageZoomProps {
   src: string;
   alt: string;
   width?: number;
   height?: number;
   className?: string;
   zoomLevel?: number;
+  onImageClick?: () => void;
 }
 
-export function ImageZoom({
+export function ProductImageZoom({
   src,
   alt,
   width = 400,
   height = 400,
   className = '',
-  zoomLevel = 1.5
-}: ImageZoomProps) {
+  zoomLevel = 1.5,
+  onImageClick
+}: ProductImageZoomProps) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -49,8 +51,20 @@ export function ImageZoom({
     setZoomPosition({ x, y });
   }, [isZoomed]);
 
-  const handleClick = () => {
-    setIsZoomed(!isZoomed);
+  const handleMouseEnter = () => {
+    setIsZoomed(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsZoomed(false);
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onImageClick) {
+      onImageClick();
+    }
   };
 
   const handleLoad = () => {
@@ -86,7 +100,8 @@ export function ImageZoom({
       className={`relative overflow-hidden cursor-pointer group ${className}`}
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
-      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Main Image Container */}
       <div className="relative w-full h-full">
@@ -95,6 +110,7 @@ export function ImageZoom({
             isZoomed ? 'cursor-zoom-out' : 'cursor-pointer'
           }`}
           style={getZoomTransform()}
+          onClick={handleImageClick}
         >
           <Image
             src={src}
@@ -129,7 +145,7 @@ export function ImageZoom({
         {!isZoomed && (
           <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-1 z-10">
             <MagnifyingGlassIcon className="w-3 h-3" />
-            Click to zoom
+            Hover to zoom
           </div>
         )}
       </div>

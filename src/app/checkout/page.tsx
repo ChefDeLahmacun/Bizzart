@@ -27,6 +27,18 @@ interface CheckoutFormData {
   phone: string;
 }
 
+interface GuestFormData {
+  email: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 export default function CheckoutPage() {
   const { cart, clearCart } = useCart();
   const { data: session, status } = useSession();
@@ -40,6 +52,7 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState('');
   const [orderCreated, setOrderCreated] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false);
   
   const [formData, setFormData] = useState<CheckoutFormData>({
     line1: '',
@@ -51,22 +64,32 @@ export default function CheckoutPage() {
     phone: ''
   });
 
+  const [guestFormData, setGuestFormData] = useState<GuestFormData>({
+    email: '',
+    name: '',
+    phone: '',
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'Turkey'
+  });
+
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (status === 'unauthenticated') {
-      router.push('/login?redirect=/checkout');
-      return;
-    }
-
     if (cart.length === 0) {
       router.push('/cart');
       return;
     }
 
-    fetchAddresses();
+    // Only fetch addresses if user is authenticated
+    if (status === 'authenticated') {
+      fetchAddresses();
+    }
   }, [status, cart.length, router]);
 
   const fetchAddresses = async () => {
@@ -87,6 +110,14 @@ export default function CheckoutPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleGuestInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setGuestFormData(prev => ({
       ...prev,
       [name]: value
     }));
@@ -133,6 +164,14 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
+    if (isGuestCheckout) {
+      await handleGuestCheckout();
+    } else {
+      await handleAuthenticatedCheckout();
+    }
+  };
+
+  const handleAuthenticatedCheckout = async () => {
     if (!selectedAddressId) {
       setError('Please select or create a shipping address');
       return;
@@ -177,13 +216,74 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleGuestCheckout = async () => {
+    if (!guestFormData.email || !guestFormData.name || !guestFormData.phone) {
+      setError('Please fill in all required guest information');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const checkoutData = {
+        items: cart.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        totalAmount: total,
+        guestInfo: {
+          email: guestFormData.email,
+          name: guestFormData.name,
+          phone: guestFormData.phone,
+          address: {
+            line1: guestFormData.line1,
+            line2: guestFormData.line2,
+            city: guestFormData.city,
+            state: guestFormData.state,
+            postalCode: guestFormData.postalCode,
+            country: guestFormData.country,
+          }
+        }
+      };
+
+      const response = await fetch('/api/checkout/guest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(checkoutData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Guest checkout failed');
+      }
+
+      setOrderId(result.id);
+      setOrderCreated(true);
+      setSuccess('Order created successfully! Now complete your payment.');
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Guest checkout failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePaymentSuccess = () => {
     setSuccess('Payment successful! Your order has been confirmed.');
     clearCart();
     
-    // Redirect to order confirmation after a short delay
+    // Redirect based on user type
     setTimeout(() => {
-      router.push(`/account/orders/${orderId}`);
+      if (isGuestCheckout) {
+        router.push(`/order-tracking?orderId=${orderId}`);
+      } else {
+        router.push(`/account/orders/${orderId}`);
+      }
     }, 2000);
   };
 
@@ -219,38 +319,206 @@ export default function CheckoutPage() {
         </div>
       )}
 
+      {/* Checkout Type Selection */}
+      {status === 'unauthenticated' && !isGuestCheckout && (
+        <div className="mb-8 bg-white/10 rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-white">Choose Checkout Option</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              onClick={() => router.push('/login?redirect=/checkout')}
+              className="p-6 bg-blue-600/20 border border-blue-500/50 rounded-lg text-white hover:bg-blue-600/30 transition-colors"
+            >
+              <h3 className="text-lg font-semibold mb-2">Sign In & Checkout</h3>
+              <p className="text-sm text-gray-300">Access your order history and saved addresses</p>
+            </button>
+            <button
+              onClick={() => setIsGuestCheckout(true)}
+              className="p-6 bg-green-600/20 border border-green-500/50 rounded-lg text-white hover:bg-green-600/30 transition-colors"
+            >
+              <h3 className="text-lg font-semibold mb-2">Guest Checkout</h3>
+              <p className="text-sm text-gray-300">Checkout without creating an account</p>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-8">
         {/* Shipping Address */}
         <div className="bg-white/10 rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-white">Shipping Address</h2>
           
-          {/* Existing Addresses */}
-          {addresses.length > 0 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-white mb-2">
-                Select Address:
-              </label>
-              <select
-                value={selectedAddressId}
-                onChange={(e) => setSelectedAddressId(e.target.value)}
-                className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
-              >
-                {addresses.map((address) => (
-                  <option key={address.id} value={address.id}>
-                    {address.line1}, {address.city} - {address.phone}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {isGuestCheckout ? (
+            /* Guest Address Form */
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={guestFormData.name}
+                  onChange={handleGuestInputChange}
+                  required
+                  className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  placeholder="John Doe"
+                />
+              </div>
 
-          {/* Add New Address Button */}
-          <button
-            onClick={() => setShowNewAddressForm(!showNewAddressForm)}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mb-4"
-          >
-            {showNewAddressForm ? 'Cancel' : 'Add New Address'}
-          </button>
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={guestFormData.email}
+                  onChange={handleGuestInputChange}
+                  required
+                  className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  placeholder="john@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Phone Number *
+                </label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={guestFormData.phone}
+                  onChange={handleGuestInputChange}
+                  required
+                  className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  placeholder="+90 555 123 4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Street Address *
+                </label>
+                <input
+                  type="text"
+                  name="line1"
+                  value={guestFormData.line1}
+                  onChange={handleGuestInputChange}
+                  required
+                  className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  placeholder="123 Main St"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Apartment, suite, etc.
+                </label>
+                <input
+                  type="text"
+                  name="line2"
+                  value={guestFormData.line2}
+                  onChange={handleGuestInputChange}
+                  className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  placeholder="Apt 4B"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={guestFormData.city}
+                    onChange={handleGuestInputChange}
+                    required
+                    className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                    placeholder="Istanbul"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    State/Province
+                  </label>
+                  <input
+                    type="text"
+                    name="state"
+                    value={guestFormData.state}
+                    onChange={handleGuestInputChange}
+                    className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                    placeholder="Istanbul"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Postal Code *
+                  </label>
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={guestFormData.postalCode}
+                    onChange={handleGuestInputChange}
+                    required
+                    className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                    placeholder="34000"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Country *
+                  </label>
+                  <input
+                    type="text"
+                    name="country"
+                    value={guestFormData.country}
+                    onChange={handleGuestInputChange}
+                    required
+                    className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                    placeholder="Turkey"
+                  />
+                </div>
+              </div>
+            </form>
+          ) : (
+            /* Authenticated User Address Selection */
+            <>
+              {/* Existing Addresses */}
+              {addresses.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white mb-2">
+                    Select Address:
+                  </label>
+                  <select
+                    value={selectedAddressId}
+                    onChange={(e) => setSelectedAddressId(e.target.value)}
+                    className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
+                  >
+                    {addresses.map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {address.line1}, {address.city} - {address.phone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Add New Address Button */}
+              <button
+                onClick={() => setShowNewAddressForm(!showNewAddressForm)}
+                className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mb-4"
+              >
+                {showNewAddressForm ? 'Cancel' : 'Add New Address'}
+              </button>
+            </>
+          )}
 
           {/* New Address Form */}
           {showNewAddressForm && (
@@ -407,7 +675,7 @@ export default function CheckoutPage() {
           
           <button
             onClick={handleCheckout}
-            disabled={loading || !selectedAddressId}
+            disabled={loading || (status === 'authenticated' && !selectedAddressId) || (isGuestCheckout && (!guestFormData.email || !guestFormData.name || !guestFormData.phone))}
             className="w-full mt-6 py-3 px-6 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Order...' : 'Create Order'}

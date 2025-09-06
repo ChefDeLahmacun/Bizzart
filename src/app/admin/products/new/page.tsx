@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import { PhotoIcon, Bars2Icon } from '@heroicons/react/24/outline';
+import { authenticatedFetchFormData, authenticatedFetch } from '@/lib/fetch-helpers';
 import {
   DndContext,
   closestCenter,
@@ -69,8 +70,7 @@ export default function AddProductPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories');
-        if (!response.ok) throw new Error('Failed to fetch categories');
+        const response = await authenticatedFetch('/api/categories');
         const data = await response.json();
         setCategories(data);
       } catch (err) {
@@ -129,16 +129,8 @@ export default function AddProductPage() {
         formData.append('images', item.file);
       });
 
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await authenticatedFetchFormData('/api/products', formData);
       const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to add product');
-      }
 
       setSuccess('Product added successfully!');
       setTimeout(() => router.push('/admin/products'), 1000);

@@ -72,16 +72,23 @@ model Category {
 
 model Order {
   id          String      @id @default(cuid())
-  userId      String
+  userId      String?
   status      OrderStatus @default(PENDING)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  addressId   String
+  addressId   String?
   totalAmount Float
-  address     Address     @relation(fields: [addressId], references: [id])
-  user        User        @relation(fields: [userId], references: [id])
+  address     Address?    @relation(fields: [addressId], references: [id])
+  user        User?       @relation(fields: [userId], references: [id])
   items       OrderItem[]
   refunds     Refund[]
+  
+  // Guest order fields
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
+  guestAddress    Json? // Store guest address as JSON
+  isGuestOrder    Boolean @default(false)
 }
 
 model OrderItem {
@@ -143,7 +150,7 @@ model VerificationToken {
 
 model Address {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String?
   line1      String
   line2      String?
   city       String
@@ -153,7 +160,7 @@ model Address {
   updatedAt  DateTime @updatedAt
   country    String
   phone      String
-  user       User     @relation(fields: [userId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
   orders     Order[]
 }
 

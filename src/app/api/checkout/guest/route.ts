@@ -1,29 +1,46 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { getAuthenticatedUser } from '@/lib/auth-helpers';
-// import { sendOrderConfirmation } from '@/lib/email';
+
+interface GuestCheckoutData {
+  items: Array<{
+    productId: string;
+    quantity: number;
+    price: number;
+  }>;
+  totalAmount: number;
+  guestInfo: {
+    email: string;
+    name: string;
+    phone: string;
+    address: {
+      line1: string;
+      line2?: string;
+      city: string;
+      state?: string;
+      postalCode: string;
+      country: string;
+    };
+  };
+}
 
 export async function POST(request: Request) {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const body = await request.json();
-    const { items, totalAmount, addressId } = body;
+    const body: GuestCheckoutData = await request.json();
+    const { items, totalAmount, guestInfo } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+    }
+
+    if (!guestInfo.email || !guestInfo.name || !guestInfo.phone) {
+      return NextResponse.json({ error: 'Guest information is required' }, { status: 400 });
     }
 
     // Use transaction to ensure data consistency
     const result = await prisma.$transaction(async (tx) => {
       // Check stock availability for all items
       const stockChecks = await Promise.all(
-        items.map(async (item: any) => {
+        items.map(async (item) => {
           const product = await tx.product.findUnique({
             where: { id: item.productId },
             select: { id: true, name: true, stock: true, price: true },
@@ -41,15 +58,20 @@ export async function POST(request: Request) {
         })
       );
 
-      // Create order
+      // Create guest order
       const order = await tx.order.create({
         data: {
-          userId: user.id,
-          addressId: addressId,
+          userId: null, // No user for guest orders
+          addressId: null, // No address ID for guest orders
           totalAmount: totalAmount,
           status: 'PENDING',
+          isGuestOrder: true,
+          guestEmail: guestInfo.email,
+          guestName: guestInfo.name,
+          guestPhone: guestInfo.phone,
+          guestAddress: guestInfo.address, // Store as JSON
           items: {
-            create: items.map((item: any) => ({
+            create: items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
               price: item.price,
@@ -57,13 +79,11 @@ export async function POST(request: Request) {
           },
         },
         include: {
-          user: true,
           items: {
             include: {
               product: true,
             },
           },
-          address: true,
         },
       });
 
@@ -80,21 +100,12 @@ export async function POST(request: Request) {
       return order;
     });
 
-    // Send order confirmation email (temporarily disabled)
-    // try {
-    //   await sendOrderConfirmation(result, user, result.items);
-    //   console.log(`Order confirmation email sent for order ${result.id}`);
-    // } catch (emailError) {
-    //   console.error('Failed to send order confirmation email:', emailError);
-    //   // Don't fail the checkout if email fails
-    // }
-
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Checkout error:', error);
+    console.error('Guest checkout error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to process checkout' },
+      { error: error.message || 'Failed to process guest checkout' },
       { status: 400 }
     );
   }
-} 
+}

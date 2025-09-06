@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { fileUploadService } from '@/lib/upload';
 import { MediaType } from '@prisma/client';
+import { getAuthenticatedUser } from '@/lib/auth-helpers';
 
 export async function GET() {
   try {
@@ -22,8 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
+  const user = await getAuthenticatedUser('ADMIN');
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
@@ -39,8 +40,6 @@ export async function POST(request: Request) {
     
     // Handle colors (multiple selection)
     const colors = formData.getAll('colors') as string[];
-
-
 
     // Handle size specifications (optional)
     const height = formData.get('height') ? parseFloat(formData.get('height') as string) : null;
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
         price,
         stock,
         categoryId,
-        userId: session.user.id,
+        userId: user.id,
         // Colors
         colors: colors.length > 0 ? colors : [],
         // Size specifications

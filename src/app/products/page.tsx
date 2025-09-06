@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { ImageZoom } from '@/components/ImageZoom';
+import { ProductImageZoom } from '@/components/ProductImageZoom';
 import { MagnifyingGlassIcon, FunnelIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 interface Product {
@@ -423,30 +424,29 @@ export default function ProductsPage() {
         <div className="mb-12">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {recentlyViewed.map((product) => (
-              <Link
-                key={product.id}
-                href={`/products/${product.id}`}
-                className="group"
-              >
-                <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100">
-                  {product.images && product.images.length > 0 ? (
-                    <ImageZoom
-                      src={product.images[0].url}
-                      alt={product.name}
-                      width={200}
-                      height={200}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      zoomLevel={1.5}
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400">No image</span>
-                  )}
-                </div>
-                <div className="mt-2">
-                  <h3 className="text-sm font-medium text-white truncate">{product.name}</h3>
-                  <p className="text-sm text-white">₺{product.price.toFixed(2)}</p>
-                </div>
-              </Link>
+              <div key={product.id} className="group">
+                <Link href={`/products/${product.id}`}>
+                  <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100">
+                    {product.images && product.images.length > 0 ? (
+                      <ProductImageZoom
+                        src={product.images[0].url}
+                        alt={product.name}
+                        width={200}
+                        height={200}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        zoomLevel={1.5}
+                        onImageClick={() => window.location.href = `/products/${product.id}`}
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">No image</span>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <h3 className="text-sm font-medium text-white truncate">{product.name}</h3>
+                    <p className="text-sm text-white">₺{product.price.toFixed(2)}</p>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -464,48 +464,47 @@ export default function ProductsPage() {
           </div>
         ) : (
           filteredProducts.map((product) => (
-            <Link
-              key={product.id}
-              href={`/products/${product.id}`}
-              className="group"
-            >
-              <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-                {product.images && product.images.length > 0 ? (
-                  <ImageZoom
-                    src={product.images[0].url}
-                    alt={product.name}
-                    width={400}
-                    height={400}
-                    className="w-full h-full"
-                    zoomLevel={1.5}
-                  />
-                ) : (
-                  <span className="text-xs text-gray-400">No image</span>
-                )}
-              </div>
-              <div className="mt-4">
-                <h3 className="text-lg font-medium text-white">{product.name}</h3>
-                <p className="mt-1 text-sm text-white">{product.description}</p>
-                <p className="mt-2 text-lg font-medium text-white">
-                  ₺{product.price.toFixed(2)}
-                </p>
-                <p className="mt-1 text-xs text-white">
-                  Stock: {product.stock}
-                </p>
-                <p className="mt-1 text-xs text-white">
-                  Category: {product.category?.name || 'Uncategorized'}
-                </p>
-                {/* Size Specifications Preview */}
-                {(product.height || product.width || product.depth || product.diameter || product.weight) && (
-                  <div className="mt-2 text-xs text-white">
-                    {product.diameter && <span className="mr-2">Ø{product.diameter}cm</span>}
-                    {product.height && !product.diameter && <span className="mr-2">H:{product.height}cm</span>}
-                    {product.width && !product.diameter && <span className="mr-2">W:{product.width}cm</span>}
-                    {product.weight && <span className="mr-2">{product.weight}g</span>}
-                  </div>
-                )}
-              </div>
-            </Link>
+            <div key={product.id} className="group">
+              <Link href={`/products/${product.id}`}>
+                <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                  {product.images && product.images.length > 0 ? (
+                    <ProductImageZoom
+                      src={product.images[0].url}
+                      alt={product.name}
+                      width={400}
+                      height={400}
+                      className="w-full h-full"
+                      zoomLevel={1.5}
+                      onImageClick={() => window.location.href = `/products/${product.id}`}
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">No image</span>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium text-white">{product.name}</h3>
+                  <p className="mt-1 text-sm text-white">{product.description}</p>
+                  <p className="mt-2 text-lg font-medium text-white">
+                    ₺{product.price.toFixed(2)}
+                  </p>
+                  <p className="mt-1 text-xs text-white">
+                    Stock: {product.stock}
+                  </p>
+                  <p className="mt-1 text-xs text-white">
+                    Category: {product.category?.name || 'Uncategorized'}
+                  </p>
+                  {/* Size Specifications Preview */}
+                  {(product.height || product.width || product.depth || product.diameter || product.weight) && (
+                    <div className="mt-2 text-xs text-white">
+                      {product.diameter && <span className="mr-2">Ø{product.diameter}cm</span>}
+                      {product.height && !product.diameter && <span className="mr-2">H:{product.height}cm</span>}
+                      {product.width && !product.diameter && <span className="mr-2">W:{product.width}cm</span>}
+                      {product.weight && <span className="mr-2">{product.weight}g</span>}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            </div>
           ))
         )}
       </div>

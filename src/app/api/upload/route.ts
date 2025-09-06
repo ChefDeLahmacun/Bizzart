@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { fileUploadService } from '@/lib/upload';
+import { cloudinaryUploadService } from '@/lib/upload-cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const uploadResults = await Promise.all(
       files.map(async (file) => {
-        return await fileUploadService.uploadFile(file, folder);
+        return await cloudinaryUploadService.uploadFile(file, folder);
       })
     );
 
