@@ -8,14 +8,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateProductReference } from './reference-generator';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client lazily to avoid build-time errors
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 export async function generateMissingReferences() {
   try {
     console.log('Starting to generate missing references...');
+    
+    const supabase = getSupabaseClient();
 
     // Get all products without references using Supabase
     const { data: productsWithoutReferences, error: fetchError } = await supabase
