@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 
@@ -18,186 +18,146 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - days);
 
     // Get total counts
-    const [totalOrders, totalCustomers, totalProducts] = await Promise.all([
-      prisma.order.count(),
-      prisma.user.count(),
-      prisma.product.count()
+    const [ordersCount, usersCount, productsCount] = await Promise.all([
+      supabaseAdmin.from('Order').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('User').select('id', { count: 'exact', head: true }),
+      supabaseAdmin.from('Product').select('id', { count: 'exact', head: true })
     ]);
 
+    const totalOrders = ordersCount.count || 0;
+    const totalCustomers = usersCount.count || 0;
+    const totalProducts = productsCount.count || 0;
+
     // Get total revenue
-    const totalRevenue = await prisma.order.aggregate({
-      _sum: {
-        totalAmount: true
-      }
-    });
+    const { data: revenueData, error: revenueError } = await supabaseAdmin
+      .from('Order')
+      .select('totalAmount');
+
+    const totalRevenue = revenueData?.reduce((sum, order) => sum + (order.totalAmount || 0), 0) || 0;
 
     // Get monthly revenue data
-    const monthlyRevenue = await prisma.order.groupBy({
-      by: ['createdAt'],
-      _sum: {
-        totalAmount: true
-      },
-      _count: {
-        id: true
-      },
-      where: {
-        createdAt: {
-          gte: startDate
-        }
-      },
-      orderBy: {
-        createdAt: 'asc'
+    const { data: monthlyRevenueData, error: monthlyError } = await supabaseAdmin
+      .from('Order')
+      .select('createdAt, totalAmount')
+      .gte('createdAt', startDate.toISOString())
+      .order('createdAt', { ascending: true });
+
+    // Group by date and calculate totals
+    const monthlyRevenueMap = new Map();
+    monthlyRevenueData?.forEach(order => {
+      const date = new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (!monthlyRevenueMap.has(date)) {
+        monthlyRevenueMap.set(date, { revenue: 0, orders: 0 });
       }
+      const existing = monthlyRevenueMap.get(date);
+      existing.revenue += order.totalAmount || 0;
+      existing.orders += 1;
     });
 
-    // Get top categories
-    const topCategories = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: {
-        price: true
-      },
-      _count: {
-        id: true
-      },
-      where: {
-        order: {
-          createdAt: {
-            gte: startDate
-          }
-        }
-      },
-      orderBy: {
-        _sum: {
-          price: 'desc'
-        }
-      },
-      take: 5
+    const formattedMonthlyRevenue = Array.from(monthlyRevenueMap.entries()).map(([month, data]) => ({
+      month,
+      revenue: data.revenue,
+      orders: data.orders
+    }));
+
+    // Get top categories (simplified - get top products and their categories)
+    const { data: topProductsData, error: topProductsError } = await supabaseAdmin
+      .from('OrderItem')
+      .select(`
+        price,
+        product:Product(
+          id,
+          name,
+          category:Category(name)
+        )
+      `)
+      .gte('createdAt', startDate.toISOString());
+
+    // Group by category
+    const categoryMap = new Map();
+    topProductsData?.forEach(item => {
+      const categoryName = item.product?.category?.name || 'Unknown';
+      if (!categoryMap.has(categoryName)) {
+        categoryMap.set(categoryName, { revenue: 0, orders: 0 });
+      }
+      const existing = categoryMap.get(categoryName);
+      existing.revenue += item.price || 0;
+      existing.orders += 1;
     });
 
-    // Get category names for top categories
-    const categoryData = await Promise.all(
-      topCategories.map(async (category) => {
-        const product = await prisma.product.findUnique({
-          where: { id: category.productId },
-          select: { categoryId: true }
-        });
-        
-        if (product?.categoryId) {
-          const categoryName = await prisma.category.findUnique({
-            where: { id: product.categoryId },
-            select: { name: true }
-          });
-          return {
-            name: categoryName?.name || 'Unknown',
-            revenue: category._sum.price || 0,
-            orders: category._count.id
-          };
-        }
-        return {
-          name: 'Unknown',
-          revenue: category._sum.price || 0,
-          orders: category._count.id
-        };
-      })
-    );
+    const topCategories = Array.from(categoryMap.entries())
+      .map(([name, data]) => ({ name, revenue: data.revenue, orders: data.orders }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
     // Get customer growth
-    const customerGrowth = await prisma.user.groupBy({
-      by: ['createdAt'],
-      _count: {
-        id: true
-      },
-      where: {
-        createdAt: {
-          gte: startDate
-        }
-      },
-      orderBy: {
-        createdAt: 'asc'
+    const { data: customerGrowthData, error: customerGrowthError } = await supabaseAdmin
+      .from('User')
+      .select('createdAt')
+      .gte('createdAt', startDate.toISOString())
+      .order('createdAt', { ascending: true });
+
+    // Group by date
+    const customerGrowthMap = new Map();
+    customerGrowthData?.forEach(user => {
+      const date = new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      if (!customerGrowthMap.has(date)) {
+        customerGrowthMap.set(date, 0);
       }
+      customerGrowthMap.set(date, customerGrowthMap.get(date) + 1);
     });
+
+    const formattedCustomerGrowth = Array.from(customerGrowthMap.entries()).map(([month, newCustomers]) => ({
+      month,
+      newCustomers,
+      totalCustomers: totalCustomers // Simplified - in real app would calculate cumulative
+    }));
 
     // Get order status breakdown
-    const orderStatusBreakdown = await prisma.order.groupBy({
-      by: ['status'],
-      _count: {
-        id: true
-      }
+    const { data: orderStatusData, error: orderStatusError } = await supabaseAdmin
+      .from('Order')
+      .select('status');
+
+    const statusMap = new Map();
+    orderStatusData?.forEach(order => {
+      const status = order.status || 'UNKNOWN';
+      statusMap.set(status, (statusMap.get(status) || 0) + 1);
     });
 
-    // Calculate percentages
-    const totalOrderCount = orderStatusBreakdown.reduce((sum, status) => sum + status._count.id, 0);
-    const statusBreakdown = orderStatusBreakdown.map(status => ({
-      status: status.status,
-      count: status._count.id,
-      percentage: Math.round((status._count.id / totalOrderCount) * 100)
+    const totalOrderCount = Array.from(statusMap.values()).reduce((sum, count) => sum + count, 0);
+    const statusBreakdown = Array.from(statusMap.entries()).map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / totalOrderCount) * 100)
     }));
 
     // Get top products
-    const topProducts = await prisma.orderItem.groupBy({
-      by: ['productId'],
-      _sum: {
-        price: true
-      },
-      _count: {
-        id: true
-      },
-      where: {
-        order: {
-          createdAt: {
-            gte: startDate
-          }
-        }
-      },
-      orderBy: {
-        _sum: {
-          price: 'desc'
-        }
-      },
-      take: 10
+    const productMap = new Map();
+    topProductsData?.forEach(item => {
+      const productName = item.product?.name || 'Unknown';
+      if (!productMap.has(productName)) {
+        productMap.set(productName, { revenue: 0, orders: 0, stock: item.product?.stock || 0 });
+      }
+      const existing = productMap.get(productName);
+      existing.revenue += item.price || 0;
+      existing.orders += 1;
     });
 
-    // Get product details for top products
-    const productData = await Promise.all(
-      topProducts.map(async (product) => {
-        const productDetails = await prisma.product.findUnique({
-          where: { id: product.productId },
-          select: { name: true, stock: true }
-        });
-        
-        return {
-          name: productDetails?.name || 'Unknown',
-          revenue: product._sum.price || 0,
-          orders: product._count.id,
-          stock: productDetails?.stock || 0
-        };
-      })
-    );
-
-    // Format monthly revenue data
-    const formattedMonthlyRevenue = monthlyRevenue.map(item => ({
-      month: item.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      revenue: item._sum.totalAmount || 0,
-      orders: item._count.id
-    }));
-
-    // Format customer growth data
-    const formattedCustomerGrowth = customerGrowth.map(item => ({
-      month: item.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      newCustomers: item._count.id,
-      totalCustomers: totalCustomers // This would need to be calculated per month in a real app
-    }));
+    const topProducts = Array.from(productMap.entries())
+      .map(([name, data]) => ({ name, revenue: data.revenue, orders: data.orders, stock: data.stock }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
 
     const analyticsData = {
-      totalRevenue: totalRevenue._sum.totalAmount || 0,
+      totalRevenue,
       totalOrders,
       totalCustomers,
       totalProducts,
       monthlyRevenue: formattedMonthlyRevenue,
-      topCategories: categoryData,
+      topCategories,
       customerGrowth: formattedCustomerGrowth,
       orderStatusBreakdown: statusBreakdown,
-      topProducts: productData
+      topProducts
     };
 
     return NextResponse.json(analyticsData);
