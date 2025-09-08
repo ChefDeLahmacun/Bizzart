@@ -26,6 +26,7 @@ export function ProductImageZoom({
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -69,6 +70,12 @@ export function ProductImageZoom({
 
   const handleLoad = () => {
     setIsLoading(false);
+    setHasError(false);
+  };
+
+  const handleError = () => {
+    setIsLoading(false);
+    setHasError(true);
   };
 
   // Calculate zoom transform with improved positioning
@@ -112,18 +119,28 @@ export function ProductImageZoom({
           style={getZoomTransform()}
           onClick={handleImageClick}
         >
-          <Image
-            src={src}
-            alt={alt}
-            width={width}
-            height={height}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              isLoading ? 'opacity-0' : 'opacity-100'
-            }`}
-            onLoad={handleLoad}
-            priority={false}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
+          {hasError ? (
+            <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+              <div className="text-center">
+                <div className="text-xs mb-1">Image failed to load</div>
+                <div className="text-xs">Click to view product</div>
+              </div>
+            </div>
+          ) : (
+            <Image
+              src={src}
+              alt={alt}
+              width={width}
+              height={height}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${
+                isLoading ? 'opacity-0' : 'opacity-100'
+              }`}
+              onLoad={handleLoad}
+              onError={handleError}
+              priority={false}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          )}
         </div>
         
         {/* Loading Spinner */}

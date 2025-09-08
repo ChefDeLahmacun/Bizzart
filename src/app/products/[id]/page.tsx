@@ -14,6 +14,7 @@ interface Product {
   description: string;
   price: number;
   stock: number;
+  reference?: string | null;
   category: {
     name: string;
   };
@@ -406,6 +407,21 @@ export default function ProductDetailPage() {
         {/* Product Details Section */}
         <div className="flex-1 max-w-lg">
           <h1 className="text-3xl font-bold text-white mb-2">{product.name}</h1>
+          {product.reference ? (
+            <div className="mb-4">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                <span className="mr-2">📋</span>
+                Reference: {product.reference}
+              </span>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                <span className="mr-2">📋</span>
+                Reference: Not assigned yet
+              </span>
+            </div>
+          )}
           <p className="text-lg text-white mb-4">{product.description}</p>
           <p className="text-2xl font-semibold text-white mb-4">₺{product.price.toFixed(2)}</p>
           <p className="text-sm text-white mb-4">Category: {product.category?.name || 'Uncategorized'}</p>

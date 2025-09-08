@@ -332,6 +332,45 @@ export default function EditProductPage() {
           />
         </div>
 
+        {/* Reference */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Reference Code
+          </label>
+          <div className="mt-1 flex items-center space-x-3">
+            <div className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 flex items-center">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                📋
+              </span>
+              <span className="text-sm font-mono">
+                {product.reference || 'No reference assigned'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/products/${params.id}/regenerate-reference`, {
+                    method: 'POST',
+                  });
+                  if (response.ok) {
+                    const updatedProduct = await response.json();
+                    setProduct(updatedProduct);
+                  }
+                } catch (error) {
+                  console.error('Failed to regenerate reference:', error);
+                }
+              }}
+              className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Regenerate
+            </button>
+          </div>
+          <p className="text-xs text-gray-600 mt-1">
+            Reference code for customer inquiries (auto-generated)
+          </p>
+        </div>
+
         {/* Description */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700">

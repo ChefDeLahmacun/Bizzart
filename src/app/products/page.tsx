@@ -14,6 +14,7 @@ interface Product {
   description: string;
   price: number;
   stock: number;
+  reference?: string | null;
   category: {
     name: string;
   };
@@ -54,13 +55,34 @@ export default function ProductsPage() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<string>('');
 
   // Available colors for filtering
   const availableColors = ['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink', 'Brown', 'Black', 'White', 'Gray', 'Natural', 'Terracotta', 'Ceramic'];
 
+  // Detect device info for debugging
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    const deviceType = isMobile ? 'Mobile' : 'Desktop';
+    const browser = userAgent.includes('Chrome') ? 'Chrome' : 
+                   userAgent.includes('Firefox') ? 'Firefox' : 
+                   userAgent.includes('Safari') ? 'Safari' : 'Other';
+    
+    setDeviceInfo(`${deviceType} - ${browser}`);
+    console.log('Device info:', deviceType, browser, userAgent);
+  }, []);
+
   useEffect(() => {
     fetchProducts();
     fetchRecentlyViewed();
+  }, []);
+
+  // Add retry mechanism for failed requests
+  const retryFetch = useCallback(() => {
+    setLoading(true);
+    setError('');
+    fetchProducts();
   }, []);
 
   useEffect(() => {
@@ -78,12 +100,37 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
-      if (!response.ok) throw new Error('Failed to fetch products');
+      console.log('Fetching products...');
+      const response = await fetch('/api/products', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-cache', // Prevent caching issues
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('Products data received:', data?.length || 0, 'products');
+      
+      // Validate data structure
+      if (!Array.isArray(data)) {
+        console.error('Invalid data format:', typeof data, data);
+        throw new Error('Invalid data format received from server');
+      }
+      
       setProducts(data);
+      setError(''); // Clear any previous errors
+      console.log('Products loaded successfully');
     } catch (err) {
-      setError('Failed to load products');
+      console.error('Error fetching products:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load products');
+      setProducts([]); // Ensure products array is empty on error
     } finally {
       setLoading(false);
     }
@@ -455,57 +502,108 @@ export default function ProductsPage() {
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {loading ? (
-          <div className="col-span-full text-center text-white">Loading...</div>
+          <div className="col-span-full text-center text-white py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            Loading products...
+          </div>
         ) : error ? (
-          <div className="col-span-full text-center text-red-500">{error}</div>
+          <div className="col-span-full text-center text-red-500 py-8">
+            <div className="mb-4">⚠️ {error}</div>
+            {deviceInfo && (
+              <div className="mb-4 text-xs text-gray-400">
+                Device: {deviceInfo}
+              </div>
+            )}
+            <button 
+              onClick={retryFetch}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="col-span-full text-center text-white">
+          <div className="col-span-full text-center text-white py-8">
             {searchQuery ? 'No products found matching your search.' : 'No products found.'}
           </div>
         ) : (
-          filteredProducts.map((product) => (
-            <div key={product.id} className="group">
-              <Link href={`/products/${product.id}`}>
-                <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-                  {product.images && product.images.length > 0 ? (
-                    <ProductImageZoom
-                      src={product.images[0].url}
-                      alt={product.name}
-                      width={400}
-                      height={400}
-                      className="w-full h-full"
-                      zoomLevel={1.5}
-                      onImageClick={() => window.location.href = `/products/${product.id}`}
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400">No image</span>
-                  )}
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-lg font-medium text-white">{product.name}</h3>
-                  <p className="mt-1 text-sm text-white">{product.description}</p>
-                  <p className="mt-2 text-lg font-medium text-white">
-                    ₺{product.price.toFixed(2)}
-                  </p>
-                  <p className="mt-1 text-xs text-white">
-                    Stock: {product.stock}
-                  </p>
-                  <p className="mt-1 text-xs text-white">
-                    Category: {product.category?.name || 'Uncategorized'}
-                  </p>
-                  {/* Size Specifications Preview */}
-                  {(product.height || product.width || product.depth || product.diameter || product.weight) && (
-                    <div className="mt-2 text-xs text-white">
-                      {product.diameter && <span className="mr-2">Ø{product.diameter}cm</span>}
-                      {product.height && !product.diameter && <span className="mr-2">H:{product.height}cm</span>}
-                      {product.width && !product.diameter && <span className="mr-2">W:{product.width}cm</span>}
-                      {product.weight && <span className="mr-2">{product.weight}g</span>}
+          filteredProducts.map((product) => {
+            // Add error boundary for each product
+            try {
+              return (
+                <div key={product.id} className="group">
+                  <Link href={`/products/${product.id}`}>
+                    <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
+                      {product.images && product.images.length > 0 ? (
+                        <ProductImageZoom
+                          src={product.images[0].url}
+                          alt={product.name || 'Product image'}
+                          width={400}
+                          height={400}
+                          className="w-full h-full"
+                          zoomLevel={1.5}
+                          onImageClick={() => window.location.href = `/products/${product.id}`}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-gray-400">
+                          <span className="text-xs">No image</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                    <div className="mt-4">
+                      <h3 className="text-lg font-medium text-white truncate">{product.name || 'Unnamed Product'}</h3>
+                      <div className="mt-2">
+                        {product.reference ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="mr-1">📋</span>
+                            {product.reference}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            <span className="mr-1">📋</span>
+                            No reference
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-white line-clamp-2">{product.description || 'No description'}</p>
+                      <p className="mt-2 text-lg font-medium text-white">
+                        ₺{typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+                      </p>
+                      <p className="mt-1 text-xs text-white">
+                        Stock: {typeof product.stock === 'number' ? product.stock : 0}
+                      </p>
+                      <p className="mt-1 text-xs text-white">
+                        Category: {product.category?.name || 'Uncategorized'}
+                      </p>
+                      {/* Size Specifications Preview */}
+                      {(product.height || product.width || product.depth || product.diameter || product.weight) && (
+                        <div className="mt-2 text-xs text-white">
+                          {product.diameter && <span className="mr-2">Ø{product.diameter}cm</span>}
+                          {product.height && !product.diameter && <span className="mr-2">H:{product.height}cm</span>}
+                          {product.width && !product.diameter && <span className="mr-2">W:{product.width}cm</span>}
+                          {product.weight && <span className="mr-2">{product.weight}g</span>}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
                 </div>
-              </Link>
-            </div>
-          ))
+              );
+            } catch (productError) {
+              console.error('Error rendering product:', product.id, productError);
+              return (
+                <div key={product.id} className="group">
+                  <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-xs">Error loading product</div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <h3 className="text-lg font-medium text-white">Product Error</h3>
+                    <p className="mt-1 text-sm text-white">Unable to display this product</p>
+                  </div>
+                </div>
+              );
+            }
+          })
         )}
       </div>
     </div>

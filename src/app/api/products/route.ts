@@ -1,21 +1,27 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { fileUploadService } from '@/lib/upload';
-import { MediaType } from '@prisma/client';
 import { getAuthenticatedUser } from '@/lib/auth-helpers';
+import { generateProductReference } from '@/lib/reference-generator';
 
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        images: true,
-        category: true,
-      },
-    });
+    const { data: products, error } = await supabaseAdmin
+      .from('Product')
+      .select(`
+        *,
+        images:Image(*),
+        category:Category(*)
+      `)
+      .order('createdAt', { ascending: false });
     
-    return NextResponse.json(products);
+    if (error) {
+      throw new Error(`Failed to fetch products: ${error.message}`);
+    }
+    
+    return NextResponse.json(products || []);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
@@ -52,10 +58,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Create the product first
-    const product = await prisma.product.create({
-      data: {
+    // Get category name for reference generation
+    const { data: category, error: categoryError } = await supabaseAdmin
+      .from('Category')
+      .select('name')
+      .eq('id', categoryId)
+      .single();
+
+    if (categoryError || !category) {
+      return NextResponse.json({ error: 'Category not found' }, { status: 400 });
+    }
+
+    // Get existing references to ensure uniqueness
+    const { data: productsWithReferences, error: refError } = await supabaseAdmin
+      .from('Product')
+      .select('reference')
+      .not('reference', 'is', null);
+
+    const existingReferences = productsWithReferences?.map(p => p.reference).filter(Boolean) as string[] || [];
+
+    // Generate unique reference code
+    const reference = generateProductReference(category.name, existingReferences);
+
+    // Create the product with reference
+    const { data: product, error: productError } = await supabaseAdmin
+      .from('Product')
+      .insert({
         name,
+        reference: reference,
         description,
         price,
         stock,
@@ -69,8 +99,13 @@ export async function POST(request: Request) {
         depth,
         diameter,
         weight,
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (productError) {
+      throw new Error(`Failed to create product: ${productError.message}`);
+    }
 
     // Handle media uploads
     if (images.length > 0) {
@@ -86,7 +121,7 @@ export async function POST(request: Request) {
           
           uploadResults.push({
             url: result.url,
-            type: file.type.startsWith('video/') ? MediaType.VIDEO : MediaType.IMAGE,
+            type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
             order: index,
           });
         } catch (error) {
@@ -95,18 +130,20 @@ export async function POST(request: Request) {
       }
 
       // Create media records one by one for better error handling
-      const createdImages = [];
       for (const media of uploadResults) {
         try {
-          const imageRecord = await prisma.image.create({
-            data: {
+          const { error: imageError } = await supabaseAdmin
+            .from('Image')
+            .insert({
               url: media.url,
               productId: product.id,
               type: media.type,
               order: media.order,
-            },
-          });
-          createdImages.push(imageRecord);
+            });
+
+          if (imageError) {
+            throw new Error(`Failed to create image record: ${imageError.message}`);
+          }
         } catch (error) {
           throw new Error(`Failed to create database record for ${media.url}: ${error}`);
         }
@@ -114,15 +151,19 @@ export async function POST(request: Request) {
     }
 
     // Fetch the complete product with images for response
-    const completeProduct = await prisma.product.findUnique({
-      where: { id: product.id },
-      include: {
-        images: true,
-        category: true,
-      },
-    });
+    const { data: completeProduct, error: fetchError } = await supabaseAdmin
+      .from('Product')
+      .select(`
+        *,
+        images:Image(*),
+        category:Category(*)
+      `)
+      .eq('id', product.id)
+      .single();
 
-
+    if (fetchError) {
+      throw new Error(`Failed to fetch product with images: ${fetchError.message}`);
+    }
 
     return NextResponse.json({ success: true, product: completeProduct });
   } catch (error) {

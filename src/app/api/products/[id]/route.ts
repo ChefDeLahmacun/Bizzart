@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { MediaType } from '@prisma/client';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params;
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      include: {
-        images: true,
-        category: true,
-      },
-    });
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    const { data: product, error } = await supabaseAdmin
+      .from('Product')
+      .select(`
+        *,
+        images:Image(*),
+        category:Category(*)
+      `)
+      .eq('id', params.id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
+      throw new Error(`Failed to fetch product: ${error.message}`);
     }
 
     return NextResponse.json(product);
@@ -60,9 +65,14 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     // Remove deleted media
     if (removeMediaIds && removeMediaIds.length > 0) {
       // Remove media from database
-      const deleteResult = await prisma.image.deleteMany({
-        where: { id: { in: removeMediaIds } }
-      });
+      const { error: deleteError } = await supabaseAdmin
+        .from('Image')
+        .delete()
+        .in('id', removeMediaIds);
+
+      if (deleteError) {
+        console.error('Failed to delete media:', deleteError);
+      }
     }
 
     // Handle new media uploads (append to existing)
@@ -79,33 +89,49 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
           };
         })
       );
-      const created = await prisma.image.createMany({
-        data: processedMedia.map((media) => ({
-          url: media.url,
-          productId: params.id,
-          type: media.type === 'VIDEO' ? MediaType.VIDEO : MediaType.IMAGE,
-        })),
-      });
-      // Fetch the new images to get their IDs (since createMany doesn't return them)
-      const allImages = await prisma.image.findMany({
-        where: { productId: params.id },
-        orderBy: { createdAt: 'asc' },
-      });
-      newMediaIds = allImages.slice(-mediaFiles.length).map((img) => img.id);
+      // Create media records one by one
+      for (const media of processedMedia) {
+        const { error: imageError } = await supabaseAdmin
+          .from('Image')
+          .insert({
+            url: media.url,
+            productId: params.id,
+            type: media.type,
+          });
+
+        if (imageError) {
+          console.error('Failed to create image record:', imageError);
+        }
+      }
+
+      // Fetch the new images to get their IDs
+      const { data: allImages, error: fetchError } = await supabaseAdmin
+        .from('Image')
+        .select('id')
+        .eq('productId', params.id)
+        .order('createdAt', { ascending: true });
+
+      if (!fetchError && allImages) {
+        newMediaIds = allImages.slice(-mediaFiles.length).map((img) => img.id);
+      }
     }
 
     // Update order for all media
     for (const { id, order } of mediaOrder) {
-      await prisma.image.update({
-        where: { id },
-        data: { order: Number(order) },
-      });
+      const { error: updateError } = await supabaseAdmin
+        .from('Image')
+        .update({ order: Number(order) })
+        .eq('id', id);
+
+      if (updateError) {
+        console.error(`Failed to update image order for ${id}:`, updateError);
+      }
     }
 
     // Update the product
-    const product = await prisma.product.update({
-      where: { id: params.id },
-      data: {
+    const { data: product, error: productError } = await supabaseAdmin
+      .from('Product')
+      .update({
         name,
         description,
         price,
@@ -119,12 +145,19 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         depth,
         diameter,
         weight,
-      },
-      include: {
-        images: true,
-        category: true,
-      },
-    });
+      })
+      .eq('id', params.id)
+      .select(`
+        *,
+        images:Image(*),
+        category:Category(*)
+      `)
+      .single();
+
+    if (productError) {
+      throw new Error(`Failed to update product: ${productError.message}`);
+    }
+
     return NextResponse.json(product);
   } catch (error) {
     console.error('Failed to update product:', error);
@@ -142,8 +175,27 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    await prisma.image.deleteMany({ where: { productId: params.id } });
-    await prisma.product.delete({ where: { id: params.id } });
+
+    // Delete associated images first
+    const { error: imageDeleteError } = await supabaseAdmin
+      .from('Image')
+      .delete()
+      .eq('productId', params.id);
+
+    if (imageDeleteError) {
+      console.error('Failed to delete images:', imageDeleteError);
+    }
+
+    // Delete the product
+    const { error: productDeleteError } = await supabaseAdmin
+      .from('Product')
+      .delete()
+      .eq('id', params.id);
+
+    if (productDeleteError) {
+      throw new Error(`Failed to delete product: ${productDeleteError.message}`);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to delete product:', error);

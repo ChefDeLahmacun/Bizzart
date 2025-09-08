@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { fileUploadService } from '@/lib/upload';
@@ -7,21 +7,30 @@ import { fileUploadService } from '@/lib/upload';
 export async function GET() {
   try {
     // Get categories with simple ordering for now
-    const categories = await prisma.category.findMany({
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    const { data: categories, error: categoriesError } = await supabaseAdmin
+      .from('Category')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (categoriesError) {
+      throw new Error(`Failed to fetch categories: ${categoriesError.message}`);
+    }
     
     // Add product counts manually
     const categoriesWithCount = await Promise.all(
-      categories.map(async (category) => {
-        const productCount = await prisma.product.count({
-          where: { categoryId: category.id }
-        });
+      (categories || []).map(async (category) => {
+        const { count: productCount, error: countError } = await supabaseAdmin
+          .from('Product')
+          .select('*', { count: 'exact', head: true })
+          .eq('categoryId', category.id);
+
+        if (countError) {
+          console.error(`Failed to count products for category ${category.id}:`, countError);
+        }
+
         return {
           ...category,
-          _count: { products: productCount }
+          _count: { products: productCount || 0 }
         };
       })
     );
@@ -51,9 +60,11 @@ export async function POST(request: Request) {
     }
 
     // Check if category already exists
-    const existingCategory = await prisma.category.findUnique({
-      where: { name }
-    });
+    const { data: existingCategory, error: checkError } = await supabaseAdmin
+      .from('Category')
+      .select('id')
+      .eq('name', name)
+      .single();
 
     if (existingCategory) {
       return NextResponse.json({ error: 'Category already exists' }, { status: 400 });
@@ -68,14 +79,20 @@ export async function POST(request: Request) {
       thumbnailUrl = uploadResult.url;
     }
 
-    const category = await prisma.category.create({
-      data: {
+    const { data: category, error: createError } = await supabaseAdmin
+      .from('Category')
+      .insert({
         name,
         thumbnail: thumbnailUrl,
         featured,
         order
-      }
-    });
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      throw new Error(`Failed to create category: ${createError.message}`);
+    }
 
     return NextResponse.json(category);
   } catch (error) {

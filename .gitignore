@@ -1,5 +1,16 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Security - Never commit sensitive files
+*.env
+.env.*
+!env.example
+scripts/setup-admin.js
+*admin*.js
+*password*.js
+*credentials*.js
+scripts/reset-admin-password.ts
+src/app/setup-admin/
+
 # dependencies
 /node_modules
 /.pnp
@@ -59,6 +70,7 @@ TESTING_MODE_GUIDE.md
 IYZICO_IMPLEMENTATION.md
 EMAIL_SETUP.md
 CLOUDINARY_SETUP.md
+IMPORTANT_REMINDER.md
 
 
 local_data_backup.sql

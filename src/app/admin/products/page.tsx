@@ -14,6 +14,7 @@ interface Product {
   description: string;
   price: number;
   stock: number;
+  reference?: string | null;
   category: {
     name: string;
   };
@@ -116,6 +117,19 @@ export default function AdminProductsPage() {
             {/* Product Info */}
             <div className="p-4">
               <h3 className="text-lg font-medium text-gray-900">{product.name}</h3>
+              <div className="mt-1">
+                {product.reference ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="mr-1">📋</span>
+                    {product.reference}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <span className="mr-1">📋</span>
+                    No reference
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm text-gray-500 line-clamp-2">
                 {product.description}
               </p>

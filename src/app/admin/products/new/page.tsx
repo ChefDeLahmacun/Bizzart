@@ -211,6 +211,24 @@ export default function AddProductPage() {
           />
         </div>
 
+        {/* Reference - Auto-generated */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-black">
+            Reference Code
+          </label>
+          <div className="w-full px-3 py-2 border rounded-lg bg-green-50 text-green-700 flex items-center justify-between">
+            <span className="text-sm">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                ✅ Active
+              </span>
+              Will be auto-generated based on category
+            </span>
+          </div>
+          <p className="text-xs text-green-600 mt-1">
+            Reference code will be automatically generated (e.g., VASE-A7B9, BOWL-X2K4)
+          </p>
+        </div>
+
         {/* Description */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium mb-2 text-black">

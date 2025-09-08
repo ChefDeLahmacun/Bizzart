@@ -20,6 +20,7 @@ const navigation = [
   { name: 'Products', href: '/admin/products', icon: ShoppingBagIcon },
   { name: 'Customers', href: '/admin/customers', icon: UserGroupIcon },
   { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
+  { name: 'Generate References', href: '/admin/generate-references', icon: Cog6ToothIcon },
   { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ];
 
