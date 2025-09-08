@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -34,7 +34,7 @@ interface GuestOrder {
   }>;
 }
 
-export default function OrderTrackingPage() {
+function OrderTrackingContent() {
   const [orderId, setOrderId] = useState('');
   const [order, setOrder] = useState<GuestOrder | null>(null);
   const [loading, setLoading] = useState(false);
@@ -232,5 +232,23 @@ export default function OrderTrackingPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function OrderTrackingPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8 text-white">Track Your Order</h1>
+        <div className="bg-white/10 rounded-lg p-6">
+          <div className="animate-pulse">
+            <div className="h-4 bg-white/20 rounded w-1/4 mb-4"></div>
+            <div className="h-10 bg-white/20 rounded"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <OrderTrackingContent />
+    </Suspense>
   );
 }
