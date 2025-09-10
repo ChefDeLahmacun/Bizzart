@@ -209,8 +209,8 @@ export default function OrderTrackingPage() {
         >
           ← Back to Account
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">Order #{order.id.slice(-8)}</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-white">Order #{order.id.slice(-8)}</h1>
+        <p className="text-white mt-2">
           Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
