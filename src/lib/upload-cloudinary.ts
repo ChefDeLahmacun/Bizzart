@@ -67,7 +67,7 @@ export class CloudinaryUploadService {
         // Optimize images
         const optimizedBuffer = await this.optimizeImage(buffer, file.type);
         
-        // Upload optimized image
+        // Upload optimized image with minimal processing
         const result = await cloudinary.uploader.upload(
           `data:${file.type};base64,${optimizedBuffer.toString('base64')}`,
           {
@@ -76,23 +76,24 @@ export class CloudinaryUploadService {
             resource_type: 'image',
             quality: 'auto',
             fetch_format: 'auto',
+            // Simplified transformation for faster uploads
             transformation: [
-              { width: 1920, height: 1920, crop: 'limit' }
+              { width: 1920, height: 1920, crop: 'limit', quality: 'auto' }
             ]
           }
         );
 
-        // Create thumbnail
+        // Create thumbnail with minimal processing
         const thumbnailResult = await cloudinary.uploader.upload(
           `data:${file.type};base64,${optimizedBuffer.toString('base64')}`,
           {
             public_id: `${publicId}_thumb`,
             folder: folder,
             resource_type: 'image',
-            quality: 'auto',
+            quality: 80, // Fixed quality for faster processing
             fetch_format: 'auto',
             transformation: [
-              { width: 300, height: 300, crop: 'fill', gravity: 'auto' }
+              { width: 300, height: 300, crop: 'fill', gravity: 'auto', quality: 80 }
             ]
           }
         );
@@ -104,7 +105,7 @@ export class CloudinaryUploadService {
           success: true
         };
       } else {
-        // For videos, upload as is
+        // For videos, upload with optimized settings for speed
         const result = await cloudinary.uploader.upload(
           `data:${file.type};base64,${buffer.toString('base64')}`,
           {
@@ -112,7 +113,13 @@ export class CloudinaryUploadService {
             folder: folder,
             resource_type: 'video',
             quality: 'auto',
-            fetch_format: 'auto'
+            fetch_format: 'auto',
+            chunk_size: 10000000, // 10MB chunks for faster uploads
+            timeout: 180000, // 3 minutes timeout
+            // Remove eager transformations for faster uploads
+            // eager: [
+            //   { width: 1280, height: 720, crop: 'scale', quality: 'auto' }
+            // ]
           }
         );
 
@@ -189,9 +196,10 @@ export class CloudinaryUploadService {
 
     // Check file size
     if (file.size > maxSize) {
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
       return {
         success: false,
-        error: `File size ${(file.size / 1024 / 1024).toFixed(2)}MB exceeds maximum allowed size of 50MB`
+        error: `File size ${fileSizeMB}MB exceeds maximum allowed size of 50MB. Please compress your video or use a smaller file. You can use online tools like HandBrake or VLC to reduce file size.`
       };
     }
 

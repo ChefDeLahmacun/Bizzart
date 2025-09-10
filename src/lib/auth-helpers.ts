@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 
 /**
  * Safely get the user ID from the session
@@ -20,10 +20,11 @@ export async function getUserIdFromSession(): Promise<string | null> {
     }
 
     // If not available, fetch from database using email
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true }
-    });
+    const { data: user } = await supabaseAdmin
+      .from('User')
+      .select('id')
+      .eq('email', session.user.email)
+      .single();
 
     return user?.id || null;
   } catch (error) {
@@ -43,18 +44,14 @@ export async function getAuthenticatedUser(requiredRole?: 'ADMIN' | 'USER') {
       return null;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { 
-        id: true, 
-        email: true, 
-        name: true, 
-        role: true,
-        language: true 
-      }
-    });
+    const { data: user, error } = await supabaseAdmin
+      .from('User')
+      .select('id, email, name, role, language')
+      .eq('email', session.user.email)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
+      console.error('User not found:', error);
       return null;
     }
 

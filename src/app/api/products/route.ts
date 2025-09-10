@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
-import { fileUploadService } from '@/lib/upload';
+import { cloudinaryUploadService } from '@/lib/upload-cloudinary';
 import { getAuthenticatedUser } from '@/lib/auth-helpers';
 import { generateProductReference } from '@/lib/reference-generator';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
   try {
@@ -81,9 +82,11 @@ export async function POST(request: Request) {
     const reference = generateProductReference(category.name, existingReferences);
 
     // Create the product with reference
+    const now = new Date().toISOString();
     const { data: product, error: productError } = await supabaseAdmin
       .from('Product')
       .insert({
+        id: uuidv4(),
         name,
         reference: reference,
         description,
@@ -99,6 +102,9 @@ export async function POST(request: Request) {
         depth,
         diameter,
         weight,
+        // Timestamps
+        createdAt: now,
+        updatedAt: now,
       })
       .select()
       .single();
@@ -107,46 +113,43 @@ export async function POST(request: Request) {
       throw new Error(`Failed to create product: ${productError.message}`);
     }
 
-    // Handle media uploads
+    // Handle media uploads in parallel
     if (images.length > 0) {
-      const uploadResults = [];
-      for (let index = 0; index < images.length; index++) {
-        const file = images[index];
+      const uploadPromises = images.map(async (file, index) => {
         try {
-          const result = await fileUploadService.uploadFile(file, 'products');
+          const result = await cloudinaryUploadService.uploadFile(file, 'products');
           
           if (!result.success) {
             throw new Error(`Failed to upload ${file.name}: ${result.error}`);
           }
           
-          uploadResults.push({
+          return {
             url: result.url,
             type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
             order: index,
-          });
+          };
         } catch (error) {
           throw error;
         }
-      }
+      });
 
-      // Create media records one by one for better error handling
-      for (const media of uploadResults) {
-        try {
-          const { error: imageError } = await supabaseAdmin
-            .from('Image')
-            .insert({
-              url: media.url,
-              productId: product.id,
-              type: media.type,
-              order: media.order,
-            });
+      const uploadResults = await Promise.all(uploadPromises);
 
-          if (imageError) {
-            throw new Error(`Failed to create image record: ${imageError.message}`);
-          }
-        } catch (error) {
-          throw new Error(`Failed to create database record for ${media.url}: ${error}`);
-        }
+      // Create all media records in a single batch operation
+      const imageRecords = uploadResults.map(media => ({
+        id: uuidv4(),
+        url: media.url,
+        productId: product.id,
+        type: media.type,
+        order: media.order,
+      }));
+
+      const { error: imageError } = await supabaseAdmin
+        .from('Image')
+        .insert(imageRecords);
+
+      if (imageError) {
+        throw new Error(`Failed to create image records: ${imageError.message}`);
       }
     }
 

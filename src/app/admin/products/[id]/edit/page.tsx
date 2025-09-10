@@ -204,6 +204,7 @@ export default function EditProductPage() {
   async function handleSubmit(formData: FormData) {
     setError('');
     setSuccess('');
+    setLoading(true);
     try {
       // Add new files in order
       media.forEach((item, idx) => {
@@ -256,11 +257,18 @@ export default function EditProductPage() {
         method: 'PUT',
         body: formData,
       });
-      if (!response.ok) throw new Error('Failed to update product');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update product');
+      }
+      
       setSuccess('Product updated successfully!');
       setTimeout(() => router.push('/admin/products'), 1000);
     } catch (e) {
-      setError('Failed to update product. Please try again.');
+      console.error('Update error:', e);
+      setError(e instanceof Error ? e.message : 'Failed to update product. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -273,7 +281,7 @@ export default function EditProductPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-semibold text-gray-900 mb-8">Edit Product</h1>
-      <form action={handleSubmit} className="space-y-6">
+      <form action={handleSubmit} className="space-y-6" key={product.id}>
         {error && <div className="text-red-600 mb-2">{error}</div>}
         {success && <div className="text-green-600 mb-2">{success}</div>}
 
@@ -556,9 +564,14 @@ export default function EditProductPage() {
 
         <button
           type="submit"
-          className="w-full py-2 px-4 bg-black text-white font-semibold rounded-md shadow hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+          disabled={loading}
+          className={`w-full py-2 px-4 font-semibold rounded-md shadow focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${
+            loading 
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+              : 'bg-black text-white hover:bg-gray-800'
+          }`}
         >
-          Save Changes
+          {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
     </div>

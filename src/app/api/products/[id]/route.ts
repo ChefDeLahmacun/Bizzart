@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { v4 as uuidv4 } from 'uuid';
+import { cloudinaryUploadService } from '@/lib/upload-cloudinary';
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params;
@@ -75,32 +77,46 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       }
     }
 
-    // Handle new media uploads (append to existing)
+    // Handle new media uploads (append to existing) in parallel
     let newMediaIds: string[] = [];
     if (mediaFiles && mediaFiles.length > 0) {
-      const processedMedia = await Promise.all(
-        mediaFiles.map(async (media) => {
-          const buffer = Buffer.from(await media.arrayBuffer());
-          const base64 = buffer.toString('base64');
-          const type = media.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+      const uploadPromises = mediaFiles.map(async (file, index) => {
+        try {
+          const result = await cloudinaryUploadService.uploadFile(file, 'products');
+          
+          if (!result.success) {
+            throw new Error(`Failed to upload ${file.name}: ${result.error}`);
+          }
+          
           return {
-            url: `data:${media.type};base64,${base64}` as string,
-            type,
+            url: result.url,
+            type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+            order: index,
           };
-        })
-      );
-      // Create media records one by one
-      for (const media of processedMedia) {
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          return null;
+        }
+      });
+
+      const uploadResults = (await Promise.all(uploadPromises)).filter(Boolean);
+
+      // Create all media records in a single batch operation
+      if (uploadResults.length > 0) {
+        const imageRecords = uploadResults.map(media => ({
+          id: uuidv4(),
+          url: media.url,
+          productId: params.id,
+          type: media.type,
+          order: media.order,
+        }));
+
         const { error: imageError } = await supabaseAdmin
           .from('Image')
-          .insert({
-            url: media.url,
-            productId: params.id,
-            type: media.type,
-          });
+          .insert(imageRecords);
 
         if (imageError) {
-          console.error('Failed to create image record:', imageError);
+          console.error('Failed to create image records:', imageError);
         }
       }
 

@@ -25,7 +25,14 @@ interface Category {
   name: string;
 }
 
-function SortableMediaItem({ id, file, url, onRemove }: { id: string; file: File; url: string; onRemove: () => void }) {
+function SortableMediaItem({ id, file, url, onRemove, uploading, progress }: { 
+  id: string; 
+  file: File; 
+  url: string; 
+  onRemove: () => void;
+  uploading?: boolean;
+  progress?: number;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -38,7 +45,20 @@ function SortableMediaItem({ id, file, url, onRemove }: { id: string; file: File
           <Bars2Icon className="h-4 w-4 text-gray-500" />
         </button>
       </div>
-      {file.type.startsWith('video/') ? (
+      {uploading ? (
+        <div className="flex flex-col items-center justify-center h-full bg-gray-100">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2"></div>
+          <div className="text-xs text-gray-600">Uploading...</div>
+          {progress !== undefined && (
+            <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+              <div 
+                className="bg-blue-600 h-1 rounded-full transition-all duration-300" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+      ) : file.type.startsWith('video/') ? (
         <video src={url} controls className="object-cover w-full h-full" />
       ) : (
         <img src={url} alt="Preview" className="object-cover w-full h-full" />
@@ -65,7 +85,7 @@ export default function AddProductPage() {
   const [success, setSuccess] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const [media, setMedia] = useState<{ id: string; file: File; url: string }[]>([]);
+  const [media, setMedia] = useState<{ id: string; file: File; url: string; uploading?: boolean; progress?: number }[]>([]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -83,11 +103,93 @@ export default function AddProductPage() {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const handleDrop = (acceptedFiles: File[]) => {
-    const newMedia = acceptedFiles.map((file) => ({
+  const compressVideo = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const video = document.createElement('video');
+      video.src = URL.createObjectURL(file);
+      
+      video.onloadedmetadata = () => {
+        // Reduce resolution for compression
+        const maxWidth = 1280;
+        const maxHeight = 720;
+        let { videoWidth, videoHeight } = video;
+        
+        if (videoWidth > maxWidth || videoHeight > maxHeight) {
+          const ratio = Math.min(maxWidth / videoWidth, maxHeight / videoHeight);
+          videoWidth *= ratio;
+          videoHeight *= ratio;
+        }
+        
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        
+        video.oncanplay = () => {
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(video, 0, 0, videoWidth, videoHeight);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'video/webm',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          }, 'video/webm', 0.7); // 70% quality
+        };
+        
+        video.play();
+      };
+    });
+  };
+
+  const handleDrop = async (acceptedFiles: File[]) => {
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    for (const file of acceptedFiles) {
+      if (file.size > maxSize) {
+        if (file.type.startsWith('video/')) {
+          // Try to compress video
+          try {
+            setError('Compressing video...');
+            const compressedFile = await compressVideo(file);
+            if (compressedFile.size <= maxSize) {
+              validFiles.push(compressedFile);
+            } else {
+              const fileSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
+              errors.push(`${file.name}: Still ${fileSizeMB}MB after compression. Please use a smaller video.`);
+            }
+          } catch (error) {
+            const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+            errors.push(`${file.name}: ${fileSizeMB}MB exceeds 50MB limit and compression failed.`);
+          }
+        } else {
+          const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+          errors.push(`${file.name}: ${fileSizeMB}MB exceeds 50MB limit`);
+        }
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (errors.length > 0) {
+      setError(errors.join(', '));
+      return;
+    }
+
+    setError(''); // Clear any previous errors
+
+    const newMedia = validFiles.map((file) => ({
       id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
       file,
       url: URL.createObjectURL(file),
+      uploading: false,
+      progress: 0,
     }));
     setMedia((prev) => [...prev, ...newMedia]);
   };
@@ -155,7 +257,7 @@ export default function AddProductPage() {
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6 text-black">Add New Product</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" key="new-product-form">
         {error && <div className="text-red-600 mb-2">{error}</div>}
         {success && <div className="text-green-600 mb-2">{success}</div>}
 
@@ -174,7 +276,7 @@ export default function AddProductPage() {
               Drag and drop images or videos here, or click to select files
             </p>
             <p className="text-xs text-black mt-1">
-              Supports JPG, PNG, WEBP, MP4, WEBM, OGG, MOV (no file limit)
+              Supports JPG, PNG, WEBP, MP4, WEBM, OGG, MOV (max 50MB per file)
             </p>
           </div>
           {/* Sortable/Removable Media Previews */}
@@ -189,6 +291,8 @@ export default function AddProductPage() {
                       file={item.file}
                       url={item.url}
                       onRemove={() => handleRemove(item.id)}
+                      uploading={item.uploading}
+                      progress={item.progress}
                     />
                   ))}
                 </div>

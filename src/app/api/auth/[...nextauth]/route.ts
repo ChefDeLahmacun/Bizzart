@@ -1,9 +1,8 @@
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { NextAuthOptions } from 'next-auth';
 import NextAuth from 'next-auth/next';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 // Validate required environment variables
@@ -25,7 +24,6 @@ if (missingVars.length > 0) {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -39,17 +37,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email,
-            },
-          });
+          const { data: user, error } = await supabaseAdmin
+            .from('User')
+            .select('*')
+            .eq('email', credentials.email)
+            .single();
 
-          if (!user) {
+          if (error || !user) {
+            console.error('User not found:', error);
             throw new Error('Invalid credentials');
           }
 
           if (!user?.password) {
+            console.error('User has no password');
             throw new Error('Invalid credentials');
           }
 
@@ -59,6 +59,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isCorrectPassword) {
+            console.error('Password mismatch');
             throw new Error('Invalid credentials');
           }
 
@@ -101,7 +102,11 @@ export const authOptions: NextAuthOptions = {
       }
       // Always fetch the latest user data for existing sessions
       if (token?.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
+        const { data: dbUser } = await supabaseAdmin
+          .from('User')
+          .select('*')
+          .eq('email', token.email)
+          .single();
         if (dbUser) {
           token.language = dbUser.language;
           token.role = dbUser.role;
