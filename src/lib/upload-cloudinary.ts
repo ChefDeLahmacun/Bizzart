@@ -105,21 +105,23 @@ export class CloudinaryUploadService {
           success: true
         };
       } else {
-        // For videos, upload with optimized settings for speed
+        // For videos, upload with optimized settings for smaller files
         const result = await cloudinary.uploader.upload(
           `data:${file.type};base64,${buffer.toString('base64')}`,
           {
             public_id: publicId,
             folder: folder,
             resource_type: 'video',
-            quality: 'auto',
-            fetch_format: 'auto',
-            chunk_size: 10000000, // 10MB chunks for faster uploads
+            // Optimized for smaller files (30MB max)
+            chunk_size: 10000000, // 10MB chunks for smaller files
             timeout: 180000, // 3 minutes timeout
-            // Remove eager transformations for faster uploads
-            // eager: [
-            //   { width: 1280, height: 720, crop: 'scale', quality: 'auto' }
-            // ]
+            eager_async: false,
+            eager: [],
+            invalidate: false,
+            overwrite: false,
+            // Use auto quality for better balance
+            quality: 'auto',
+            fetch_format: 'auto'
           }
         );
 
@@ -176,13 +178,15 @@ export class CloudinaryUploadService {
    * Validate file before upload
    */
   private async validateFile(file: File): Promise<{ success: boolean; error?: string }> {
-    const maxSize = 50 * 1024 * 1024; // 50MB for videos, images will be compressed
+    const maxSize = 30 * 1024 * 1024; // 30MB for videos, images will be compressed
     const allowedTypes = [
       // Images
       'image/jpeg',
       'image/jpg', 
       'image/png',
       'image/webp',
+      'image/heic', // iPhone HEIC format
+      'image/heif', // iPhone HEIF format
       // Videos
       'video/mp4',
       'video/webm',
@@ -199,7 +203,7 @@ export class CloudinaryUploadService {
       const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
       return {
         success: false,
-        error: `File size ${fileSizeMB}MB exceeds maximum allowed size of 50MB. Please compress your video or use a smaller file. You can use online tools like HandBrake or VLC to reduce file size.`
+        error: `File size ${fileSizeMB}MB exceeds maximum allowed size of 30MB. Please compress your video or use a smaller file. You can use online tools like HandBrake or VLC to reduce file size.`
       };
     }
 

@@ -1,14 +1,22 @@
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { prisma } from '@/lib/prisma';
+import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+
+// Validate required environment variables
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing required Supabase environment variables');
+}
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key'
+);
 
 // SSL issues resolved by removing Google Fonts dependency
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -22,15 +30,24 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
-          });
+          const { data: user, error } = await supabase
+            .from('User')
+            .select('*')
+            .eq('email', credentials.email)
+            .single();
+
+          if (error) {
+            console.error('Supabase error:', error);
+            throw new Error('Invalid credentials');
+          }
 
           if (!user) {
+            console.error('User not found');
             throw new Error('Invalid credentials');
           }
 
           if (!user?.password) {
+            console.error('User has no password');
             throw new Error('Invalid credentials');
           }
 
@@ -40,6 +57,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isCorrectPassword) {
+            console.error('Password mismatch');
             throw new Error('Invalid credentials');
           }
 
@@ -51,21 +69,24 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
           };
         } catch (error) {
+          console.error('Authentication error:', error);
           throw new Error('Authentication failed');
         }
       },
     }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+          params: {
+            prompt: "consent",
+            access_type: "offline",
+            response_type: "code"
+          }
         }
-      }
-    }),
+      })
+    ] : []),
   ],
   pages: {
     signIn: '/login',
@@ -79,49 +100,43 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       // If this is a Google OAuth sign in
       if (account?.provider === 'google') {
-        // Check if user already exists with this email
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-          include: { accounts: true }
-        });
+        try {
+          // Check if user already exists with this email
+          const { data: existingUser, error: userError } = await supabase
+            .from('User')
+            .select('*')
+            .eq('email', user.email!)
+            .single();
 
-        if (existingUser) {
-          // If user exists but doesn't have a Google account linked
-          const hasGoogleAccount = existingUser.accounts.some(
-            acc => acc.provider === 'google'
-          );
-
-          if (!hasGoogleAccount) {
-            // Link the Google account to the existing user
-            await prisma.account.create({
-              data: {
-                userId: existingUser.id,
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-                refresh_token: account.refresh_token,
-                access_token: account.access_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-                session_state: account.session_state,
-              },
-            });
-
+          if (existingUser && !userError) {
             // Update user info if needed
-            await prisma.user.update({
-              where: { id: existingUser.id },
-              data: {
+            await supabase
+              .from('User')
+              .update({
                 name: user.name || existingUser.name,
                 image: user.image || existingUser.image,
-                emailVerified: new Date(),
-              },
-            });
-
-            // Return the existing user
-            return true;
+                emailVerified: new Date().toISOString(),
+              })
+              .eq('id', existingUser.id);
+          } else {
+            // Create new user if doesn't exist
+            await supabase
+              .from('User')
+              .insert({
+                id: user.id!,
+                email: user.email!,
+                name: user.name,
+                image: user.image,
+                emailVerified: new Date().toISOString(),
+                role: 'USER',
+                language: 'en',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
           }
+        } catch (error) {
+          console.error('Error during Google sign in:', error);
+          return false;
         }
       }
 
@@ -134,14 +149,23 @@ export const authOptions: NextAuthOptions = {
       }
       // Always fetch the latest user data for existing sessions
       if (token?.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
-        if (dbUser) {
-          token.language = dbUser.language || undefined;
-          token.role = dbUser.role;
-          token.id = dbUser.id;
-          if (dbUser.email) {
-            token.email = dbUser.email;
+        try {
+          const { data: dbUser, error } = await supabase
+            .from('User')
+            .select('*')
+            .eq('email', token.email)
+            .single();
+          
+          if (dbUser && !error) {
+            token.language = dbUser.language || undefined;
+            token.role = dbUser.role;
+            token.id = dbUser.id;
+            if (dbUser.email) {
+              token.email = dbUser.email;
+            }
           }
+        } catch (error) {
+          console.error('Error fetching user in JWT callback:', error);
         }
       }
       return token;

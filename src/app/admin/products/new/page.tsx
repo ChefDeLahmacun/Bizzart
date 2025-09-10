@@ -110,9 +110,9 @@ export default function AddProductPage() {
       video.src = URL.createObjectURL(file);
       
       video.onloadedmetadata = () => {
-        // Reduce resolution for compression
-        const maxWidth = 1280;
-        const maxHeight = 720;
+        // Very aggressive compression for maximum speed
+        const maxWidth = 640; // Much smaller for faster processing
+        const maxHeight = 360; // Much smaller for faster processing
         let { videoWidth, videoHeight } = video;
         
         if (videoWidth > maxWidth || videoHeight > maxHeight) {
@@ -138,7 +138,7 @@ export default function AddProductPage() {
             } else {
               resolve(file);
             }
-          }, 'video/webm', 0.7); // 70% quality
+          }, 'video/webm', 0.3); // 30% quality for maximum speed
         };
         
         video.play();
@@ -147,30 +147,40 @@ export default function AddProductPage() {
   };
 
   const handleDrop = async (acceptedFiles: File[]) => {
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 30 * 1024 * 1024; // 30MB - smaller limit for faster uploads
+    const compressionThreshold = 25 * 1024 * 1024; // 25MB - compress files over this size
     const validFiles: File[] = [];
     const errors: string[] = [];
 
     for (const file of acceptedFiles) {
       if (file.size > maxSize) {
         if (file.type.startsWith('video/')) {
-          // Try to compress video
-          try {
-            setError('Compressing video...');
-            const compressedFile = await compressVideo(file);
-            if (compressedFile.size <= maxSize) {
-              validFiles.push(compressedFile);
-            } else {
-              const fileSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
-              errors.push(`${file.name}: Still ${fileSizeMB}MB after compression. Please use a smaller video.`);
+          // Only compress if file is over compression threshold
+          if (file.size > compressionThreshold) {
+            try {
+              setError(`Compressing video ${file.name}...`);
+              const compressedFile = await compressVideo(file);
+              if (compressedFile.size <= maxSize) {
+                validFiles.push(compressedFile);
+                setError(''); // Clear compression message
+              } else {
+                const fileSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
+                errors.push(`${file.name}: Still ${fileSizeMB}MB after compression. Please use a smaller video.`);
+                setError('');
+              }
+            } catch (error) {
+              const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+              errors.push(`${file.name}: ${fileSizeMB}MB exceeds 30MB limit and compression failed.`);
+              setError('');
             }
-          } catch (error) {
+          } else {
+            // File is under compression threshold but over max size - reject
             const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-            errors.push(`${file.name}: ${fileSizeMB}MB exceeds 50MB limit and compression failed.`);
+            errors.push(`${file.name}: ${fileSizeMB}MB exceeds 30MB limit. Please use a smaller video.`);
           }
         } else {
           const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-          errors.push(`${file.name}: ${fileSizeMB}MB exceeds 50MB limit`);
+          errors.push(`${file.name}: ${fileSizeMB}MB exceeds 30MB limit`);
         }
       } else {
         validFiles.push(file);
@@ -196,10 +206,15 @@ export default function AddProductPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.webp'],
+      'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.heic', '.heif'],
       'video/*': ['.mp4', '.webm', '.ogg', '.mov'],
     },
     onDrop: handleDrop,
+    multiple: true,
+    // Mobile-specific optimizations
+    capture: 'environment', // Use back camera on mobile
+    noClick: false, // Allow clicking on mobile
+    noKeyboard: true, // Disable keyboard navigation on mobile
   });
 
   const handleRemove = (id: string) => {
@@ -266,9 +281,10 @@ export default function AddProductPage() {
           <label className="block text-sm font-medium mb-2 text-black">Product Media (Images or Videos)</label>
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer ${
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer touch-manipulation ${
               isDragActive ? 'border-black bg-gray-50' : 'border-gray-300'
             }`}
+            style={{ minHeight: '120px' }} // Ensure adequate touch target
           >
             <input {...getInputProps()} />
             <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -276,7 +292,10 @@ export default function AddProductPage() {
               Drag and drop images or videos here, or click to select files
             </p>
             <p className="text-xs text-black mt-1">
-              Supports JPG, PNG, WEBP, MP4, WEBM, OGG, MOV (max 50MB per file)
+              Supports JPG, PNG, WEBP, HEIC, MP4, WEBM, OGG, MOV (max 30MB per file)
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              📱 Mobile: Tap to open camera or select from gallery
             </p>
           </div>
           {/* Sortable/Removable Media Previews */}

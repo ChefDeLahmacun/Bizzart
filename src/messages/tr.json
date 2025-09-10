@@ -29,6 +29,7 @@
   "state": "İl/Eyalet (İsteğe Bağlı)",
   "postal_code": "Posta Kodu",
   "country": "Ülke",
+  "phone": "Telefon",
   "save_address": "Adresi Kaydet",
   "cancel": "İptal",
   "no_addresses": "Henüz kaydedilmiş adres yok.",
@@ -36,5 +37,6 @@
   "address_updated": "Adres başarıyla güncellendi!",
   "address_deleted": "Adres başarıyla silindi!",
   "add_new_address": "Yeni Adres Ekle",
+  "update_address": "Adresi Güncelle",
   "loading": "Yükleniyor..."
 } 

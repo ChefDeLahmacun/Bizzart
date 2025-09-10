@@ -108,7 +108,7 @@ export default function AccountPage() {
   const loadAddresses = useCallback(async () => {
     if (!session?.user?.id) return;
     try {
-      const response = await fetch(`/api/users/${session.user.id}/address`);
+      const response = await fetch('/api/users/me/address');
       if (!response.ok) throw new Error('Failed to fetch addresses');
       const data = await response.json();
       setAddresses(data);
@@ -122,14 +122,19 @@ export default function AccountPage() {
     if (!session?.user?.id) return;
     try {
       setOrdersLoading(true);
+      setOrdersError('');
       const response = await fetch('/api/orders');
       if (!response.ok) throw new Error('Failed to fetch orders');
       const data = await response.json();
+      console.log('Orders API response:', data);
       // Filter orders for current user
       const userOrders = data.filter((order: { userId: string }) => order.userId === session.user.id);
-      setOrders(userOrders);
+      console.log('Filtered user orders:', userOrders);
+      setOrders(userOrders || []);
     } catch (error) {
+      console.error('Error loading orders:', error);
       setOrdersError('Failed to load orders');
+      setOrders([]); // Ensure orders is always an array
     } finally {
       setOrdersLoading(false);
     }
@@ -159,30 +164,8 @@ export default function AccountPage() {
     }
   }, []);
 
-  // Early returns after all hooks
-  if (status === "loading") {
-    return <div className="max-w-4xl mx-auto p-6">Loading...</div>;
-  }
-
-  if (!session) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6 text-black">Account</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-gray-700 mb-4">You are not logged in.</p>
-          <button
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-            onClick={() => signIn()}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Password change function
-  async function handlePasswordChange(e: React.FormEvent<HTMLFormElement>) {
+  const handlePasswordChange = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPwError("");
     setPwSuccess("");
@@ -218,10 +201,10 @@ export default function AccountPage() {
     } finally {
       setPwLoading(false);
     }
-  }
+  }, [currentPassword, newPassword, confirmNewPassword]);
 
   // Language change function
-  async function handleLanguageChange(e: React.FormEvent<HTMLFormElement>) {
+  const handleLanguageChange = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLangError("");
     setLangSuccess("");
@@ -243,7 +226,7 @@ export default function AccountPage() {
     } finally {
       setLangLoading(false);
     }
-  }
+  }, [language]);
 
   // Address management functions
   const handleAddAddress = useCallback(async (e: React.FormEvent) => {
@@ -255,7 +238,7 @@ export default function AccountPage() {
     setAddressSuccess("");
     
     try {
-      const response = await fetch(`/api/users/${session.user.id}/address`, {
+      const response = await fetch('/api/users/me/address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(addressForm),
@@ -283,7 +266,7 @@ export default function AccountPage() {
     setAddressSuccess("");
     
     try {
-      const response = await fetch(`/api/users/${session.user.id}/address`, {
+      const response = await fetch('/api/users/me/address', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...addressForm, addressId: editingAddress.id }),
@@ -308,7 +291,7 @@ export default function AccountPage() {
     if (!confirm('Are you sure you want to delete this address?')) return;
     
     try {
-      const response = await fetch(`/api/users/${session.user.id}/address`, {
+      const response = await fetch('/api/users/me/address', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ addressId }),
@@ -354,7 +337,7 @@ export default function AccountPage() {
     setEditingAddress(null);
   }, []);
 
-  const startEditAddress = (address: Address) => {
+  const startEditAddress = useCallback((address: Address) => {
     setEditingAddress(address);
     setAddressForm({
       line1: address.line1,
@@ -365,11 +348,10 @@ export default function AccountPage() {
       country: address.country,
       phone: address.phone || "",
     });
-  };
-
+  }, []);
 
   // Preferences functions
-  const handlePreferencesUpdate = async (e: React.FormEvent) => {
+  const handlePreferencesUpdate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setPreferencesLoading(true);
     setPreferencesError("");
@@ -393,9 +375,9 @@ export default function AccountPage() {
     } finally {
       setPreferencesLoading(false);
     }
-  };
+  }, [preferences]);
 
-  const requestNotificationPermission = async () => {
+  const requestNotificationPermission = useCallback(async () => {
     try {
       if ('Notification' in window) {
         const permission = await Notification.requestPermission();
@@ -411,7 +393,120 @@ export default function AccountPage() {
       console.error('Error requesting notification permission:', error);
       alert('Failed to enable push notifications.');
     }
-  };
+  }, []);
+
+  // Addresses tab content
+  const AddressesTab = useMemo(() => (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-black">{t('delivery_addresses')}</h2>
+        {!showAddForm && !editingAddress && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+          >
+            {t('add_new_address')}
+          </button>
+        )}
+      </div>
+
+      {addressError && <div className="text-red-600 text-sm mb-4">{addressError}</div>}
+      {addressSuccess && <div className="text-green-600 text-sm mb-4">{addressSuccess}</div>}
+
+      {/* Address Form */}
+      {(showAddForm || editingAddress) && (
+        <AddressForm
+          addressForm={addressForm}
+          setAddressForm={setAddressForm}
+          editingAddress={editingAddress}
+          addressLoading={addressLoading}
+          handleAddAddress={handleAddAddress}
+          handleEditAddress={handleEditAddress}
+          onCancel={cancelEdit}
+        />
+      )}
+
+      {/* Address List */}
+      {addresses.length === 0 && !showAddForm && !editingAddress ? (
+        <p className="text-gray-600">{t('no_addresses')}</p>
+      ) : (
+        <div className="space-y-4">
+          {addresses.map((address) => (
+            <div key={address.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      📍 Address
+                    </span>
+                    {addresses.indexOf(address) === 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">{address.line1}</p>
+                    {address.line2 && <p className="text-gray-600 text-sm sm:text-base">{address.line2}</p>}
+                    <p className="text-gray-600 text-sm sm:text-base">
+                      {address.city}, {address.state && `${address.state}, `}{address.postalCode}
+                    </p>
+                    <p className="text-gray-600 text-sm sm:text-base">{address.country}</p>
+                    <p className="text-gray-600 text-sm sm:text-base">📞 {address.phone}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:ml-4 flex-shrink-0">
+                  {addresses.indexOf(address) !== 0 && (
+                    <button
+                      onClick={() => setDefaultAddress(address.id)}
+                      className="px-2 py-1 text-xs sm:text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      title="Set as default address"
+                    >
+                      Set Default
+                    </button>
+                  )}
+                  <button
+                    onClick={() => startEditAddress(address)}
+                    className="px-2 py-1 text-xs sm:text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                  >
+                    {t('edit_address')}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteAddress(address.id)}
+                    className="px-2 py-1 text-xs sm:text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                  >
+                    {t('delete_address')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  ), [showAddForm, editingAddress, addressError, addressSuccess, addressForm, addressLoading, addresses, t, handleAddAddress, handleEditAddress, handleDeleteAddress, setDefaultAddress, startEditAddress, cancelEdit]);
+
+  // Early returns after all hooks
+  if (status === "loading") {
+    return <div className="max-w-4xl mx-auto p-6">Loading...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-6 text-black">Account</h1>
+        <div className="bg-white rounded-lg shadow p-6">
+          <p className="text-gray-700 mb-4">You are not logged in.</p>
+          <button
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
+            onClick={() => signIn()}
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Tab navigation component
   const TabNavigation = () => (
@@ -546,18 +641,22 @@ export default function AccountPage() {
   );
 
   // Orders tab content
-  const OrdersTab = () => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold mb-4 text-black">Order History</h2>
-      
-      {ordersLoading ? (
+  const OrdersTab = () => {
+    // Ensure orders is always an array
+    const safeOrders = orders || [];
+    
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4 text-black">Order History</h2>
+        
+        {ordersLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
           <p className="text-gray-600">Loading orders...</p>
         </div>
       ) : ordersError ? (
         <div className="text-red-600 text-center py-8">{ordersError}</div>
-      ) : orders.length === 0 ? (
+      ) : safeOrders.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-gray-600 mb-4">You haven't placed any orders yet.</p>
           <Link href="/products" className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition">
@@ -566,7 +665,7 @@ export default function AccountPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {safeOrders.map((order) => (
             <div key={order.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-start mb-3">
                 <div className="min-w-0 flex-1">
@@ -593,30 +692,18 @@ export default function AccountPage() {
                 </div>
               </div>
               
-              {/* Order Items */}
+              {/* Order Details */}
               <div className="mb-3">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Items:</h4>
-                <div className="space-y-2">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                        {item.product.images && item.product.images.length > 0 ? (
-                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-xs text-gray-600">📷</span>
-                          </div>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                            No image
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
-                        <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 flex-shrink-0">₺{(item.price * item.quantity).toFixed(2)}</p>
-                    </div>
-                  ))}
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Order Details:</h4>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <span className="text-xs text-gray-600">🏺</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Handcrafted Pottery Order</p>
+                    <p className="text-xs text-gray-600">Order #{order.id.slice(-8)}</p>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 flex-shrink-0">₺{order.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -649,7 +736,8 @@ export default function AccountPage() {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   // Preferences tab content
   const PreferencesTab = () => (
@@ -767,97 +855,6 @@ export default function AccountPage() {
       </div>
     </div>
   );
-
-  // Addresses tab content
-  const AddressesTab = useMemo(() => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-black">{t('delivery_addresses')}</h2>
-        {!showAddForm && !editingAddress && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition"
-          >
-            {t('add_new_address')}
-          </button>
-        )}
-      </div>
-
-      {addressError && <div className="text-red-600 text-sm mb-4">{addressError}</div>}
-      {addressSuccess && <div className="text-green-600 text-sm mb-4">{addressSuccess}</div>}
-
-      {/* Address Form */}
-      {(showAddForm || editingAddress) && (
-        <AddressForm
-          addressForm={addressForm}
-          setAddressForm={setAddressForm}
-          editingAddress={editingAddress}
-          addressLoading={addressLoading}
-          handleAddAddress={handleAddAddress}
-          handleEditAddress={handleEditAddress}
-          onCancel={cancelEdit}
-        />
-      )}
-
-      {/* Address List */}
-      {addresses.length === 0 && !showAddForm && !editingAddress ? (
-        <p className="text-gray-600">{t('no_addresses')}</p>
-      ) : (
-        <div className="space-y-4">
-          {addresses.map((address) => (
-            <div key={address.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      📍 Address
-                    </span>
-                    {addresses.indexOf(address) === 0 && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Default
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-900 text-sm sm:text-base">{address.line1}</p>
-                    {address.line2 && <p className="text-gray-600 text-sm sm:text-base">{address.line2}</p>}
-                    <p className="text-gray-600 text-sm sm:text-base">
-                      {address.city}, {address.state && `${address.state}, `}{address.postalCode}
-                    </p>
-                    <p className="text-gray-600 text-sm sm:text-base">{address.country}</p>
-                    <p className="text-gray-600 text-sm sm:text-base">📞 {address.phone}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:ml-4 flex-shrink-0">
-                  {addresses.indexOf(address) !== 0 && (
-                    <button
-                      onClick={() => setDefaultAddress(address.id)}
-                      className="px-2 py-1 text-xs sm:text-sm bg-green-500 text-white rounded hover:bg-green-600 transition"
-                      title="Set as default address"
-                    >
-                      Set Default
-                    </button>
-                  )}
-                  <button
-                    onClick={() => startEditAddress(address)}
-                    className="px-2 py-1 text-xs sm:text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                  >
-                    {t('edit_address')}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteAddress(address.id)}
-                    className="px-2 py-1 text-xs sm:text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
-                  >
-                    {t('delete_address')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  ), [showAddForm, editingAddress, addressError, addressSuccess, addressForm, addressLoading, addresses, t, handleAddAddress, handleEditAddress, handleDeleteAddress, setDefaultAddress]);
 
   // Render the appropriate tab content
   const renderTabContent = () => {

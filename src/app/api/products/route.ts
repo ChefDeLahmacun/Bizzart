@@ -13,7 +13,7 @@ export async function GET() {
       .from('Product')
       .select(`
         *,
-        images:Image(*),
+        images:Image(*).order('order', { ascending: true }),
         category:Category(*)
       `)
       .order('createdAt', { ascending: false });
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       .from('Product')
       .select(`
         *,
-        images:Image(*),
+        images:Image(*).order('order', { ascending: true }),
         category:Category(*)
       `)
       .eq('id', product.id)

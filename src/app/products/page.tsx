@@ -475,15 +475,33 @@ export default function ProductsPage() {
                 <Link href={`/products/${product.id}`}>
                   <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100">
                     {product.images && product.images.length > 0 ? (
-                      <ProductImageZoom
-                        src={product.images[0].url}
-                        alt={product.name}
-                        width={200}
-                        height={200}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        zoomLevel={1.5}
-                        onImageClick={() => window.location.href = `/products/${product.id}`}
-                      />
+                      product.images[0].type === 'VIDEO' ? (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <video 
+                            src={product.images[0].url} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            muted
+                            playsInline
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                            <div className="w-8 h-8 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-gray-800 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <ProductImageZoom
+                          src={product.images[0].url}
+                          alt={product.name}
+                          width={200}
+                          height={200}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          zoomLevel={1.5}
+                          onImageClick={() => window.location.href = `/products/${product.id}`}
+                        />
+                      )
                     ) : (
                       <span className="text-xs text-gray-400">No image</span>
                     )}
@@ -534,15 +552,33 @@ export default function ProductsPage() {
                   <Link href={`/products/${product.id}`}>
                     <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
                       {product.images && product.images.length > 0 ? (
-                        <ProductImageZoom
-                          src={product.images[0].url}
-                          alt={product.name || 'Product image'}
-                          width={400}
-                          height={400}
-                          className="w-full h-full"
-                          zoomLevel={1.5}
-                          onImageClick={() => window.location.href = `/products/${product.id}`}
-                        />
+                        product.images[0].type === 'VIDEO' ? (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                            <video 
+                              src={product.images[0].url} 
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                              <div className="w-12 h-12 bg-white bg-opacity-80 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <ProductImageZoom
+                            src={product.images[0].url}
+                            alt={product.name || 'Product image'}
+                            width={400}
+                            height={400}
+                            className="w-full h-full"
+                            zoomLevel={1.5}
+                            onImageClick={() => window.location.href = `/products/${product.id}`}
+                          />
+                        )
                       ) : (
                         <div className="flex flex-col items-center justify-center text-gray-400">
                           <span className="text-xs">No image</span>

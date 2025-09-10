@@ -18,14 +18,6 @@ interface Order {
     email: string;
     name?: string;
   };
-  items: Array<{
-    id: string;
-    quantity: number;
-    price: number;
-    product: {
-      name: string;
-    };
-  }>;
   address?: {
     line1: string;
     line2?: string;
@@ -322,14 +314,12 @@ export default function AdminOrdersPage() {
               </div>
               
               <div>
-                <h4 className="font-medium text-gray-900">Order Items</h4>
+                <h4 className="font-medium text-gray-900">Order Details</h4>
                 <div className="space-y-2">
-                  {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.product.name} x {item.quantity}</span>
-                      <span>₺{(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
+                  <div className="flex justify-between text-sm">
+                    <span>Handcrafted Pottery Order</span>
+                    <span>₺{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</span>
+                  </div>
                 </div>
               </div>
               

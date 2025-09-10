@@ -12,7 +12,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .from('Product')
       .select(`
         *,
-        images:Image(*),
+        images:Image(*).order('order', { ascending: true }),
         category:Category(*)
       `)
       .eq('id', params.id)
@@ -54,6 +54,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const mediaOrderRaw = formData.getAll('mediaOrder[]') as string[];
     const mediaOrder = mediaOrderRaw.map((item) => JSON.parse(item)); // [{id, order}]
     
+    console.log('API: Processing media files:', mediaFiles.length);
+    console.log('API: Remove media IDs:', removeMediaIds.length);
+    
     // Handle colors (multiple selection)
     const colors = formData.getAll('colors') as string[];
 
@@ -66,7 +69,6 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     // Remove deleted media
     if (removeMediaIds && removeMediaIds.length > 0) {
-      // Remove media from database
       const { error: deleteError } = await supabaseAdmin
         .from('Image')
         .delete()
@@ -80,6 +82,17 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     // Handle new media uploads (append to existing) in parallel
     let newMediaIds: string[] = [];
     if (mediaFiles && mediaFiles.length > 0) {
+      // Get the current highest order number from existing media
+      const { data: existingMedia } = await supabaseAdmin
+        .from('Image')
+        .select('order')
+        .eq('productId', params.id)
+        .order('order', { ascending: false })
+        .limit(1);
+
+      const maxOrder = existingMedia && existingMedia.length > 0 ? existingMedia[0].order : -1;
+      const startOrder = maxOrder + 1;
+
       const uploadPromises = mediaFiles.map(async (file, index) => {
         try {
           const result = await cloudinaryUploadService.uploadFile(file, 'products');
@@ -91,7 +104,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
           return {
             url: result.url,
             type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
-            order: index,
+            order: startOrder + index, // Start after existing media
           };
         } catch (error) {
           console.error(`Error uploading ${file.name}:`, error);
@@ -120,20 +133,25 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         }
       }
 
-      // Fetch the new images to get their IDs
+      // Fetch the new images to get their IDs (order by order field)
       const { data: allImages, error: fetchError } = await supabaseAdmin
         .from('Image')
-        .select('id')
+        .select('id, order')
         .eq('productId', params.id)
-        .order('createdAt', { ascending: true });
+        .order('order', { ascending: true });
 
       if (!fetchError && allImages) {
-        newMediaIds = allImages.slice(-mediaFiles.length).map((img) => img.id);
+        // Get the IDs of the newly uploaded media (those with order >= startOrder)
+        newMediaIds = allImages
+          .filter(img => img.order >= startOrder)
+          .map((img) => img.id);
       }
     }
 
-    // Update order for all media
-    for (const { id, order } of mediaOrder) {
+    // Update order for all media (excluding deleted ones)
+    const validMediaOrder = mediaOrder.filter(({ id }) => !removeMediaIds.includes(id));
+    
+    for (const { id, order } of validMediaOrder) {
       const { error: updateError } = await supabaseAdmin
         .from('Image')
         .update({ order: Number(order) })
@@ -165,7 +183,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       .eq('id', params.id)
       .select(`
         *,
-        images:Image(*),
+        images:Image(*).order('order', { ascending: true }),
         category:Category(*)
       `)
       .single();

@@ -12,25 +12,22 @@ import {
   EnvelopeIcon
 } from '@heroicons/react/24/outline';
 
-interface OrderItem {
-  id: string;
-  quantity: number;
-  price: number;
-  product: {
-    id: string;
-    name: string;
-    images: Array<{ url: string }>;
-  };
-}
-
 interface Order {
   id: string;
   totalAmount: number;
   status: string;
   createdAt: string;
   updatedAt: string;
-  items: OrderItem[];
-  address: {
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state?: string;
+    postalCode: string;
+    country: string;
+    phone: string;
+  };
+  Address?: {
     line1: string;
     line2?: string;
     city: string;
@@ -73,6 +70,7 @@ export default function OrderTrackingPage() {
       }
 
       const data = await response.json();
+      console.log('Order data received:', data);
       setOrder(data);
     } catch (error) {
       setError("Failed to load order");
@@ -156,7 +154,7 @@ export default function OrderTrackingPage() {
         status: 'Delivered',
         description: 'Your order has been delivered',
         timestamp: order.updatedAt,
-        location: order.address.city
+        location: (order.address || order.Address)?.city || 'Delivery location'
       });
     }
 
@@ -314,28 +312,16 @@ export default function OrderTrackingPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
             <div className="space-y-3">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
-                    {item.product.images && item.product.images.length > 0 ? (
-                      <img 
-                        src={item.product.images[0].url} 
-                        alt={item.product.name} 
-                        className="w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                        No image
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{item.product.name}</p>
-                    <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900">₺{(item.price * item.quantity).toFixed(2)}</p>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                  <div className="text-gray-400 text-xs">🏺</div>
                 </div>
-              ))}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Handcrafted Pottery Order</p>
+                  <p className="text-xs text-gray-600">Order #{order.id.slice(-8)}</p>
+                </div>
+                <p className="text-sm font-medium text-gray-900">₺{order.totalAmount.toFixed(2)}</p>
+              </div>
             </div>
             
             <div className="border-t border-gray-200 pt-4 mt-4">
@@ -352,16 +338,23 @@ export default function OrderTrackingPage() {
               <MapPinIcon className="h-5 w-5 text-gray-500 mr-2" />
               Shipping Address
             </h2>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>{order.address.line1}</p>
-              {order.address.line2 && <p>{order.address.line2}</p>}
-              <p>{order.address.city}, {order.address.state && `${order.address.state}, `}{order.address.postalCode}</p>
-              <p>{order.address.country}</p>
-              <div className="flex items-center mt-3">
-                <PhoneIcon className="h-4 w-4 text-gray-500 mr-2" />
-                <span>{order.address.phone}</span>
+            {(order.address || order.Address) ? (
+              <div className="space-y-2 text-sm text-gray-700">
+                <p>{(order.address || order.Address)?.line1}</p>
+                {(order.address || order.Address)?.line2 && <p>{(order.address || order.Address)?.line2}</p>}
+                <p>{(order.address || order.Address)?.city}, {(order.address || order.Address)?.state && `${(order.address || order.Address)?.state}, `}{(order.address || order.Address)?.postalCode}</p>
+                <p>{(order.address || order.Address)?.country}</p>
+                <div className="flex items-center mt-3">
+                  <PhoneIcon className="h-4 w-4 text-gray-500 mr-2" />
+                  <span>{(order.address || order.Address)?.phone}</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                <p>Address information not available</p>
+                <p className="text-xs mt-1">Please contact support for address details</p>
+              </div>
+            )}
           </div>
 
           {/* Need Help */}

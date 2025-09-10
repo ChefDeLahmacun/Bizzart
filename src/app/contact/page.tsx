@@ -16,16 +16,30 @@ export default function ContactPage() {
     setError("");
     
     try {
-      // For now, simulate successful submission since API endpoint might not exist yet
-      // TODO: Replace with actual API call when /api/contact endpoint is implemented
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
       
-      setSuccess("Your message has been sent! We'll get back to you soon.");
+      setSuccess(data.message || "Your message has been sent! We'll get back to you soon.");
       setName("");
       setEmail("");
       setMessage("");
     } catch (e) {
-      setError("Failed to send message. Please try again later.");
+      setError(e instanceof Error ? e.message : "Failed to send message. Please try again later.");
     } finally {
       setIsLoading(false);
     }

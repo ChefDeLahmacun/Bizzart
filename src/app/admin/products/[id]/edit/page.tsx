@@ -114,6 +114,7 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [media, setMedia] = useState<{ id: string; url: string; type: string; file?: File }[]>([]);
   const [removedMediaIds, setRemovedMediaIds] = useState<string[]>([]);
+  const [originalMediaOrder, setOriginalMediaOrder] = useState<{ [id: string]: number }>({});
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -129,11 +130,20 @@ export default function EditProductPage() {
         if (!productRes.ok) throw new Error('Failed to fetch product');
         const productData = await productRes.json();
         setProduct(productData);
-        setMedia(productData.images.map((img: any) => ({
+        const mediaItems = productData.images.map((img: any) => ({
           id: img.id,
           url: img.url,
           type: img.type === 'VIDEO' ? 'video' : 'image',
-        })));
+        }));
+        console.log('Loaded media items:', mediaItems);
+        setMedia(mediaItems);
+        
+        // Store original order for existing media
+        const originalOrder: { [id: string]: number } = {};
+        productData.images.forEach((img: any, index: number) => {
+          originalOrder[img.id] = img.order || index;
+        });
+        setOriginalMediaOrder(originalOrder);
         setSelectedColors(productData.colors || []);
 
         const categoriesRes = await fetch('/api/categories');
@@ -158,13 +168,26 @@ export default function EditProductPage() {
   };
 
   const handleDrop = (acceptedFiles: File[]) => {
+    console.log('Files dropped:', acceptedFiles.length, acceptedFiles.map(f => f.name));
+    
     const newMedia = acceptedFiles.map((file) => ({
       id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
       url: URL.createObjectURL(file),
       type: file.type.startsWith('video/') ? 'video' : 'image',
       file,
     }));
-    setMedia((prev) => [...prev, ...newMedia]);
+    
+    setMedia((prev) => {
+      // Check for duplicates based on file name and size
+      const existingFileNames = prev.map(item => item.file?.name).filter(Boolean);
+      const filteredNewMedia = newMedia.filter(item => 
+        !existingFileNames.includes(item.file?.name)
+      );
+      
+      console.log('Adding new media:', filteredNewMedia.length, 'duplicates filtered:', newMedia.length - filteredNewMedia.length);
+      
+      return [...prev, ...filteredNewMedia];
+    });
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -173,20 +196,37 @@ export default function EditProductPage() {
       'video/*': ['.mp4', '.webm', '.ogg', '.mov'],
     },
     onDrop: handleDrop,
+    noClick: false,
+    noKeyboard: true,
+    multiple: true,
+    // Prevent duplicate files
+    onDropRejected: (fileRejections) => {
+      console.log('Files rejected:', fileRejections);
+    }
   });
 
   const handleRemove = (id: string) => {
+    console.log('Removing media with ID:', id);
+    
     setMedia((prev) => {
       return prev.filter((item) => item.id !== id);
     });
-    // If it's an existing media (id is not a temp id), track for deletion
-    if (!id.includes('-')) {
+    // If it's an existing media (UUID format), track for deletion
+    // UUIDs have the format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    if (isUUID) {
+      console.log('Tracking existing media for deletion:', id);
       setRemovedMediaIds((prev) => {
         if (!prev.includes(id)) {
-          return [...prev, id];
+          const newRemovedIds = [...prev, id];
+          console.log('Updated removed media IDs:', newRemovedIds);
+          return newRemovedIds;
         }
         return prev;
       });
+    } else {
+      console.log('Removing new media (not tracking for deletion):', id);
     }
   };
 
@@ -202,21 +242,31 @@ export default function EditProductPage() {
   };
 
   async function handleSubmit(formData: FormData) {
+    // Prevent duplicate submissions
+    if (loading) {
+      console.log('Form submission already in progress, ignoring duplicate');
+      return;
+    }
+    
     setError('');
     setSuccess('');
     setLoading(true);
     try {
       // Add new files in order
+      const newFiles = media.filter(item => item.file);
+      console.log('Processing new files:', newFiles.length);
+      
       media.forEach((item, idx) => {
         if (item.file) {
           formData.append('images', item.file);
         }
-        // Always send the order for all media
-        if (!item.file) {
+        // Only send order for existing media that has been manually reordered
+        if (!item.file && originalMediaOrder[item.id] !== idx) {
           formData.append('mediaOrder[]', JSON.stringify({ id: item.id, order: idx }));
         }
       });
       // Send removed media IDs
+      console.log('Sending removed media IDs:', removedMediaIds);
       removedMediaIds.forEach((id) => {
         formData.append('removeMediaIds[]', id);
       });
@@ -263,6 +313,42 @@ export default function EditProductPage() {
       }
       
       setSuccess('Product updated successfully!');
+      
+      // Only refresh if there were no new media files uploaded
+      // If there were new files, they will be in the response and we don't need to refresh
+      if (newFiles.length === 0) {
+        // Refresh the product data to get updated media list
+        try {
+          const productRes = await fetch(`/api/products/${params.id}`);
+          if (productRes.ok) {
+            const productData = await productRes.json();
+          const mediaItems = productData.images.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+            type: img.type === 'VIDEO' ? 'video' : 'image',
+          }));
+          console.log('Refreshed media items after update:', mediaItems);
+          setMedia(mediaItems);
+          
+          // Update original order for existing media
+          const originalOrder: { [id: string]: number } = {};
+          productData.images.forEach((img: any, index: number) => {
+            originalOrder[img.id] = img.order || index;
+          });
+          setOriginalMediaOrder(originalOrder);
+          }
+        } catch (refreshError) {
+          console.error('Failed to refresh product data:', refreshError);
+        }
+      } else {
+        // Clear new media files after successful upload (they're now in the database)
+        console.log('Clearing new media files after successful upload');
+        setMedia(prev => prev.filter(item => !item.file));
+      }
+      
+      // Clear removed media IDs after successful update
+      setRemovedMediaIds([]);
+      
       setTimeout(() => router.push('/admin/products'), 1000);
     } catch (e) {
       console.error('Update error:', e);

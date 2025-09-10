@@ -335,7 +335,7 @@ export default function ProductDetailPage() {
                 <div className="w-full max-w-lg">
                   <video
                     controls
-                    className="rounded-lg object-cover w-full h-96 mb-4"
+                    className="rounded-lg object-contain w-full h-96 mb-4"
                   >
                     <source src={videoUrl} type="video/mp4" />
                     Your browser does not support the video tag.
@@ -573,7 +573,7 @@ export default function ProductDetailPage() {
                     <img
                       src={relatedProduct.images[0].url}
                       alt={relatedProduct.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <span className="text-xs text-gray-400">No image</span>

@@ -97,13 +97,16 @@ export default function CheckoutPage() {
       const response = await fetch('/api/users/me/address');
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched addresses data:', data);
         setAddresses(data);
         if (data.length > 0) {
           setSelectedAddressId(data[0].id);
         }
+      } else {
+        console.error('Failed to fetch addresses:', response.status, response.statusText);
       }
     } catch (error) {
-      // Failed to fetch addresses
+      console.error('Error fetching addresses:', error);
     }
   };
 
@@ -501,11 +504,34 @@ export default function CheckoutPage() {
                     onChange={(e) => setSelectedAddressId(e.target.value)}
                     className="w-full p-2 rounded border bg-white/20 text-white border-white/30"
                   >
-                    {addresses.map((address) => (
-                      <option key={address.id} value={address.id}>
-                        {address.line1}, {address.city} - {address.phone}
-                      </option>
-                    ))}
+                    {addresses.map((address) => {
+                      console.log('Address object:', address); // Debug log
+                      console.log('Address fields:', {
+                        line1: address.line1,
+                        city: address.city,
+                        phone: address.phone,
+                        state: address.state,
+                        postalCode: address.postalCode,
+                        country: address.country
+                      });
+                      
+                      // Build address string with all available fields
+                      const addressParts = [];
+                      if (address.line1) addressParts.push(address.line1);
+                      if (address.city) addressParts.push(address.city);
+                      if (address.state) addressParts.push(address.state);
+                      if (address.postalCode) addressParts.push(address.postalCode);
+                      if (address.country) addressParts.push(address.country);
+                      
+                      const addressString = addressParts.join(', ');
+                      const phoneString = address.phone ? ` - ${address.phone}` : '';
+                      
+                      return (
+                        <option key={address.id} value={address.id}>
+                          {addressString || 'No address'} {phoneString}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               )}
@@ -646,8 +672,8 @@ export default function CheckoutPage() {
           <h2 className="text-xl font-semibold mb-4 text-white">Order Summary</h2>
           
           <div className="space-y-3 mb-6">
-            {cart.map((item) => (
-              <div key={item.id} className="flex justify-between items-center">
+            {cart.map((item, index) => (
+              <div key={item.id || `cart-item-${index}`} className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gray-100 rounded overflow-hidden">
                     {item.image && (

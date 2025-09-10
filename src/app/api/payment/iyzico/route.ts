@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { createClient } from '@supabase/supabase-js';
 import Iyzipay from 'iyzipay';
 import { isTestingMode, shouldSimulatePayments } from '@/lib/config';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Only initialize Iyzipay if environment variables are available
 let iyzipay: Iyzipay | null = null;
@@ -18,10 +23,47 @@ if (process.env.IYZIPAY_API_KEY && process.env.IYZIPAY_SECRET_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Iyzipay is properly configured
+    // Check if we should simulate payments (testing mode)
+    if (isTestingMode() && shouldSimulatePayments()) {
+      // Simulate successful payment without requiring Iyzico credentials
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update order status to PROCESSING
+      try {
+        await supabase
+          .from('Order')
+          .update({ 
+            status: 'PROCESSING',
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', orderId);
+        
+        // Send payment confirmation email
+        try {
+          const { sendOrderStatusUpdate } = await import('@/lib/email');
+          await sendOrderStatusUpdate(order, order.User, 'PROCESSING');
+          console.log(`Payment confirmation email sent for order ${orderId} (Testing Mode)`);
+        } catch (emailError) {
+          console.error('Failed to send payment confirmation email:', emailError);
+          // Don't fail the payment if email fails
+        }
+      } catch (dbError) {
+        console.error('Failed to update order status:', dbError);
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Payment successful (Testing Mode)',
+        paymentId: `test_${Date.now()}`,
+        status: 'SUCCESS',
+        testing: true
+      });
+    }
+
+    // Check if Iyzipay is properly configured for production
     if (!iyzipay) {
       return NextResponse.json(
-        { error: 'Payment gateway not configured' },
+        { error: 'Payment gateway not configured. Please enable testing mode or configure Iyzico credentials.' },
         { status: 500 }
       );
     }
@@ -43,20 +85,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Get order details
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        items: {
-          include: {
-            product: true
-          }
-        },
-        address: true,
-        user: true
-      }
-    });
+    const { data: order, error: orderError } = await supabase
+      .from('Order')
+      .select(`
+        *,
+        Address(*),
+        User(*)
+      `)
+      .eq('id', orderId)
+      .single();
 
-    if (!order) {
+    if (orderError || !order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
@@ -64,25 +103,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if we should simulate payments (testing mode)
-    if (isTestingMode() && shouldSimulatePayments()) {
-      // Simulate successful payment
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update order status to processing
-      await prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'PROCESSING' }
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Payment successful (Testing Mode)',
-        paymentId: `test_${Date.now()}`,
-        status: 'SUCCESS',
-        testing: true
-      });
-    }
 
     // Create payment request
     const paymentRequest = {
@@ -105,10 +125,10 @@ export async function POST(request: NextRequest) {
       },
       buyer: {
         id: order.userId,
-        name: order.user.name || 'Unknown',
+        name: order.User?.name || 'Unknown',
         surname: 'User',
-        gsmNumber: order.address?.phone || '+905350000000',
-        email: order.user.email || 'user@example.com',
+        gsmNumber: order.Address?.phone || '+905350000000',
+        email: order.User?.email || 'user@example.com',
         identityNumber: '74300864791',
         lastLoginDate: new Date().toISOString(),
         registrationDate: new Date().toISOString(),
@@ -119,26 +139,28 @@ export async function POST(request: NextRequest) {
         zipCode: billingAddress?.postalCode || '34732'
       },
       shippingAddress: {
-        contactName: order.user.name || 'Unknown',
-        city: billingAddress?.city || 'Unknown',
-        country: billingAddress?.country || 'Turkey',
-        address: billingAddress?.line1 || 'Unknown',
-        zipCode: billingAddress?.postalCode || '34732'
+        contactName: order.User?.name || 'Unknown',
+        city: order.Address?.city || 'Unknown',
+        country: order.Address?.country || 'Turkey',
+        address: order.Address?.line1 || 'Unknown',
+        zipCode: order.Address?.postalCode || '34732'
       },
       billingAddress: {
-        contactName: order.user.name || 'Unknown',
-        city: billingAddress?.city || 'Unknown',
-        country: billingAddress?.country || 'Turkey',
-        address: billingAddress?.line1 || 'Unknown',
-        zipCode: billingAddress?.postalCode || '34732'
+        contactName: order.User?.name || 'Unknown',
+        city: order.Address?.city || 'Unknown',
+        country: order.Address?.country || 'Turkey',
+        address: order.Address?.line1 || 'Unknown',
+        zipCode: order.Address?.postalCode || '34732'
       },
-      basketItems: order.items.map((item, index) => ({
-        id: item.product.id,
-        name: item.product.name,
-        category1: 'General',
-        itemType: 'PHYSICAL',
-        price: (item.price * item.quantity).toString()
-      }))
+      basketItems: [
+        {
+          id: 'order_item',
+          name: `Order #${orderId}`,
+          category1: 'General',
+          itemType: 'PHYSICAL',
+          price: order.totalAmount.toString()
+        }
+      ]
     };
 
     return new Promise((resolve) => {
@@ -154,27 +176,43 @@ export async function POST(request: NextRequest) {
 
         if (result.status === 'success') {
           // Payment successful - update order status
-          prisma.order.update({
-            where: { id: orderId },
-            data: { status: 'PROCESSING' }
-          }).then(() => {
-            resolve(NextResponse.json({
-              success: true,
-              message: 'Payment successful',
-              paymentId: result.paymentId,
-              status: result.status,
-              testing: false
-            }));
-          }).catch((dbError) => {
-            console.error('Database update error:', dbError);
-            resolve(NextResponse.json({
-              success: true,
-              message: 'Payment successful but order update failed',
-              paymentId: result.paymentId,
-              status: result.status,
-              testing: false
-            }));
-          });
+          supabase
+            .from('Order')
+            .update({ 
+              status: 'PROCESSING',
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', orderId)
+            .then(async ({ error: dbError }) => {
+              if (dbError) {
+                console.error('Database update error:', dbError);
+                resolve(NextResponse.json({
+                  success: true,
+                  message: 'Payment successful but order update failed',
+                  paymentId: result.paymentId,
+                  status: result.status,
+                  testing: false
+                }));
+              } else {
+                // Send payment confirmation email
+                try {
+                  const { sendOrderStatusUpdate } = await import('@/lib/email');
+                  await sendOrderStatusUpdate(order, order.User, 'PROCESSING');
+                  console.log(`Payment confirmation email sent for order ${orderId}`);
+                } catch (emailError) {
+                  console.error('Failed to send payment confirmation email:', emailError);
+                  // Don't fail the payment if email fails
+                }
+                
+                resolve(NextResponse.json({
+                  success: true,
+                  message: 'Payment successful',
+                  paymentId: result.paymentId,
+                  status: result.status,
+                  testing: false
+                }));
+              }
+            });
         } else {
           // Payment failed
           resolve(NextResponse.json(
